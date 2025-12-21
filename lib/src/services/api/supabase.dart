@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:cactus/src/utils/models/model_cache.dart';
 import 'package:cactus/src/version.dart';
-import 'package:cactus/services/telemetry.dart';
+import 'package:cactus/services/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cactus/src/models/log_record.dart';
 import 'package:cactus/models/types.dart';
@@ -16,7 +16,7 @@ class Supabase {
   static const String _supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscXFjenh3eWFvZHRjZG1kbWx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MTg2MzIsImV4cCI6MjA2NzA5NDYzMn0.nBzqGuK9j6RZ6mOPWU2boAC_5H9XDs-fPpo5P3WZYbI';
 
   static Future<void> sendLogRecord(LogRecord record) async {
-    if (!CactusTelemetry.isTelemetryEnabled) {
+    if (!CactusConfig.isTelemetryEnabled) {
       return;
     }
     
@@ -90,9 +90,16 @@ class Supabase {
     }
   }
 
-  static Future<String?> registerDevice(Map<String, dynamic> deviceData) async {
-    if (!CactusTelemetry.isTelemetryEnabled) {
+  static Future<String?> registerDevice({
+    Map<String, dynamic>? deviceData,
+    String? deviceId,
+  }) async {
+    if (!CactusConfig.isTelemetryEnabled) {
       return 'telemetry-disabled';
+    }
+
+    if (deviceData == null && deviceId == null) {
+      return null;
     }
     
     try {
@@ -105,7 +112,8 @@ class Supabase {
       
       // Send device data wrapped in device_data object as per API spec
       final body = jsonEncode({
-        'device_data': deviceData
+        deviceData != null ? 'device_data' : 'device_id': deviceData ?? deviceId,
+        'cactus_pro_key': CactusConfig.cactusProKey,
       });
       request.write(body);
       
@@ -114,8 +122,8 @@ class Supabase {
       if (response.statusCode == 200) {
         final responseBody = await response.transform(utf8.decoder).join();
         debugPrint('Device registered successfully');        
-        final deviceId = await registerApp(responseBody);
-        return deviceId;
+        final generatedDeviceId = await registerApp(responseBody);
+        return generatedDeviceId;
       } else {
         return null;
       }
