@@ -32,14 +32,12 @@ void _staticTokenCallbackDispatcher(Pointer<Utf8> tokenC, int tokenId, Pointer<V
 
 Future<(int?, String)> _initContextInIsolate(Map<String, dynamic> params) async {
   final modelPath = params['modelPath'] as String;
-  final contextSize = params['contextSize'] as int;
 
   try {
-    debugPrint('Initializing context with model: $modelPath, contextSize: $contextSize');
+    debugPrint('Initializing context with model: $modelPath');
     final modelPathC = modelPath.toNativeUtf8(allocator: calloc);
     try {
-      // We are not using corpusDir for now, passing null pointer
-      final handle = bindings.cactusInit(modelPathC, contextSize, nullptr);
+      final handle = bindings.cactusInit(modelPathC, nullptr, false);
       if (handle != nullptr) {
         return (handle.address, 'Context initialized successfully');
       } else {
@@ -61,20 +59,28 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
   final bufferSize = params['bufferSize'] as int;
   final hasCallback = params['hasCallback'] as bool;
   final SendPort? replyPort = params['replyPort'] as SendPort?;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
 
   final responseBuffer = calloc<Uint8>(bufferSize);
   final messagesJsonC = messagesJson.toNativeUtf8(allocator: calloc);
   final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
   final toolsJsonC = toolsJson?.toNativeUtf8(allocator: calloc);
 
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
   Pointer<NativeFunction<CactusTokenCallbackNative>>? callbackPointer;
 
   try {
     if (hasCallback && replyPort != null) {
-      // Set up token callback to send tokens back through isolate
       _activeTokenCallback = (token) {
         replyPort.send({'type': 'token', 'data': token});
-        return true; // Always continue in isolate mode
+        return true;
       };
       
       callbackPointer = Pointer.fromFunction<CactusTokenCallbackNative>(
@@ -91,6 +97,8 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
       toolsJsonC ?? nullptr,
       callbackPointer ?? nullptr,
       nullptr,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
     );
 
     debugPrint('Received completion result code: $result');
@@ -104,10 +112,17 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
         final response = jsonResponse['response'] as String? ?? responseText;
         final timeToFirstTokenMs = (jsonResponse['time_to_first_token_ms'] as num?)?.toDouble() ?? 0.0;
         final totalTimeMs = (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0;
-        final tokensPerSecond = (jsonResponse['tokens_per_second'] as num?)?.toDouble() ?? 0.0;
+        final tokensPerSecond = (jsonResponse['tokens_per_second'] as num?)?.toDouble() ?? 
+            ((jsonResponse['decode_tps'] as num?)?.toDouble() ?? 0.0);
         final prefillTokens = jsonResponse['prefill_tokens'] as int? ?? 0;
         final decodeTokens = jsonResponse['decode_tokens'] as int? ?? 0;
         final totalTokens = jsonResponse['total_tokens'] as int? ?? 0;
+        final confidence = (jsonResponse['confidence'] as num?)?.toDouble() ?? 0.0;
+        final cloudHandoff = jsonResponse['cloud_handoff'] as bool? ?? false;
+        final thinking = jsonResponse['thinking'] as String?;
+        final prefillTps = (jsonResponse['prefill_tps'] as num?)?.toDouble() ?? 0.0;
+        final decodeTps = (jsonResponse['decode_tps'] as num?)?.toDouble() ?? 0.0;
+        final ramUsageMb = (jsonResponse['ram_usage_mb'] as num?)?.toDouble() ?? 0.0;
         
         // Parse tool calls
         List<ToolCall> toolCalls = [];
@@ -128,6 +143,12 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
           decodeTokens: decodeTokens,
           totalTokens: totalTokens,
           toolCalls: toolCalls,
+          confidence: confidence,
+          cloudHandoff: cloudHandoff,
+          thinking: thinking,
+          prefillTps: prefillTps,
+          decodeTps: decodeTps,
+          ramUsageMb: ramUsageMb,
         );
       } catch (e) {
         debugPrint('Unable to parse the response json: $e');
@@ -141,6 +162,11 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
           decodeTokens: 0,
           totalTokens: 0,
           toolCalls: [],
+          confidence: 0.0,
+          cloudHandoff: false,
+          prefillTps: 0.0,
+          decodeTps: 0.0,
+          ramUsageMb: 0.0,
         );
       }
     } else {
@@ -154,6 +180,11 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
         decodeTokens: 0,
         totalTokens: 0,
         toolCalls: [],
+        confidence: 0.0,
+        cloudHandoff: false,
+        prefillTps: 0.0,
+        decodeTps: 0.0,
+        ramUsageMb: 0.0,
       );
     }
   } finally {
@@ -164,6 +195,9 @@ Future<CactusCompletionResult> _completionInIsolate(Map<String, dynamic> params)
     if (toolsJsonC != null) {
       calloc.free(toolsJsonC);
     }
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
   }
 }
 
@@ -173,7 +207,7 @@ Future<CactusEmbeddingResult> _generateEmbeddingInIsolate(Map<String, dynamic> p
   final bufferSize = params['bufferSize'] as int;
 
   final textC = text.toNativeUtf8(allocator: calloc);
-  final embeddingDimPtr = calloc<Size>();
+  final embeddingDimPtr = calloc<IntPtr>();
   final embeddingsBuffer = calloc<Float>(bufferSize);
 
   try {
@@ -188,6 +222,7 @@ Future<CactusEmbeddingResult> _generateEmbeddingInIsolate(Map<String, dynamic> p
       embeddingsBuffer,
       bufferSizeInBytes,
       embeddingDimPtr,
+      false,
     );
 
     debugPrint('Received embedding result code: $result');
@@ -333,21 +368,37 @@ Future<CactusTranscriptionResult> _transcribeInIsolate(Map<String, dynamic> para
       try {
         final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
         final success = jsonResponse['success'] as bool? ?? true;
-        // Try 'text' first, then 'response', then fall back to raw responseText
         final text = (jsonResponse['text'] as String?) ??
                      (jsonResponse['response'] as String?) ??
                      responseText;
         final timeToFirstTokenMs = (jsonResponse['time_to_first_token_ms'] as num?)?.toDouble() ?? 0.0;
         final totalTimeMs = (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0;
         final tokensPerSecond = (jsonResponse['tokens_per_second'] as num?)?.toDouble() ?? 0.0;
+        final confidence = (jsonResponse['confidence'] as num?)?.toDouble() ?? 0.0;
+        final cloudHandoff = jsonResponse['cloud_handoff'] as bool? ?? false;
+
+        List<TranscriptionSegment> segments = [];
+        if (jsonResponse['segments'] != null) {
+          final segmentsJson = jsonResponse['segments'] as List<dynamic>;
+          segments = segmentsJson.map((seg) {
+            final segMap = seg as Map<String, dynamic>;
+            return TranscriptionSegment(
+              start: (segMap['start'] as num?)?.toDouble() ?? 0.0,
+              end: (segMap['end'] as num?)?.toDouble() ?? 0.0,
+              text: segMap['text'] as String? ?? '',
+            );
+          }).toList();
+        }
 
         return CactusTranscriptionResult(
           success: success,
-          // [TEMP] Clean up special tokens from the text
           text: text.trim().replaceAll('<|startoftranscript|>', ''),
           timeToFirstTokenMs: timeToFirstTokenMs,
           totalTimeMs: totalTimeMs,
-          tokensPerSecond: tokensPerSecond
+          tokensPerSecond: tokensPerSecond,
+          confidence: confidence,
+          cloudHandoff: cloudHandoff,
+          segments: segments,
         );
       } catch (e) {
         debugPrint('Unable to parse the transcription response json: $e');
@@ -370,6 +421,323 @@ Future<CactusTranscriptionResult> _transcribeInIsolate(Map<String, dynamic> para
       calloc.free(audioFilePathC);
     }
     calloc.free(promptC);
+    calloc.free(optionsJsonC);
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
+  }
+}
+
+Future<PrefillResult> _prefillInIsolate(Map<String, dynamic> params) async {
+  final handle = params['handle'] as int;
+  final messagesJson = params['messagesJson'] as String;
+  final optionsJson = params['optionsJson'] as String;
+  final toolsJson = params['toolsJson'] as String?;
+  final bufferSize = params['bufferSize'] as int;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
+
+  final responseBuffer = calloc<Uint8>(bufferSize);
+  final messagesJsonC = messagesJson.toNativeUtf8(allocator: calloc);
+  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
+  final toolsJsonC = toolsJson?.toNativeUtf8(allocator: calloc);
+
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
+  try {
+    final result = bindings.cactusPrefill(
+      Pointer.fromAddress(handle),
+      messagesJsonC,
+      responseBuffer.cast<Utf8>(),
+      bufferSize,
+      optionsJsonC,
+      toolsJsonC ?? nullptr,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
+    );
+
+    if (result > 0) {
+      final responseText = utf8.decode(responseBuffer.asTypedList(result), allowMalformed: true).trim();
+      try {
+        final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
+        return PrefillResult(
+          success: jsonResponse['success'] as bool? ?? true,
+          prefillTokens: jsonResponse['prefill_tokens'] as int? ?? 0,
+          prefillTps: (jsonResponse['prefill_tps'] as num?)?.toDouble() ?? 0.0,
+          totalTimeMs: (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0,
+          ramUsageMb: (jsonResponse['ram_usage_mb'] as num?)?.toDouble() ?? 0.0,
+        );
+      } catch (e) {
+        debugPrint('Unable to parse the prefill response json: $e');
+        return PrefillResult(success: false, errorMessage: 'Unable to parse response');
+      }
+    } else {
+      return PrefillResult(success: false, errorMessage: 'Prefill failed with code $result');
+    }
+  } finally {
+    calloc.free(responseBuffer);
+    calloc.free(messagesJsonC);
+    calloc.free(optionsJsonC);
+    if (toolsJsonC != null) {
+      calloc.free(toolsJsonC);
+    }
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
+  }
+}
+
+Future<DetectLanguageResult> _detectLanguageInIsolate(Map<String, dynamic> params) async {
+  final handle = params['handle'] as int;
+  final audioFilePath = params['audioFilePath'] as String?;
+  final bufferSize = params['bufferSize'] as int;
+  final optionsJson = params['optionsJson'] as String;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
+
+  final responseBuffer = calloc<Uint8>(bufferSize);
+  final audioFilePathC = audioFilePath?.toNativeUtf8(allocator: calloc);
+  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
+
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
+  try {
+    final result = bindings.cactusDetectLanguage(
+      Pointer.fromAddress(handle),
+      audioFilePathC ?? nullptr,
+      responseBuffer.cast<Utf8>(),
+      bufferSize,
+      optionsJsonC,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
+    );
+
+    if (result > 0) {
+      final responseText = utf8.decode(responseBuffer.asTypedList(result), allowMalformed: true).trim();
+      try {
+        final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
+        return DetectLanguageResult(
+          language: jsonResponse['language'] as String? ?? '',
+          confidence: (jsonResponse['confidence'] as num?)?.toDouble() ?? 0.0,
+          languageToken: jsonResponse['language_token'] as String? ?? '',
+        );
+      } catch (e) {
+        debugPrint('Unable to parse detect language response: $e');
+        return DetectLanguageResult(language: '');
+      }
+    } else {
+      return DetectLanguageResult(language: '');
+    }
+  } finally {
+    calloc.free(responseBuffer);
+    if (audioFilePathC != null) {
+      calloc.free(audioFilePathC);
+    }
+    calloc.free(optionsJsonC);
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
+  }
+}
+
+Future<VadResult> _vadInIsolate(Map<String, dynamic> params) async {
+  final handle = params['handle'] as int;
+  final audioFilePath = params['audioFilePath'] as String?;
+  final bufferSize = params['bufferSize'] as int;
+  final optionsJson = params['optionsJson'] as String;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
+
+  final responseBuffer = calloc<Uint8>(bufferSize);
+  final audioFilePathC = audioFilePath?.toNativeUtf8(allocator: calloc);
+  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
+
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
+  try {
+    final result = bindings.cactusVad(
+      Pointer.fromAddress(handle),
+      audioFilePathC ?? nullptr,
+      responseBuffer.cast<Utf8>(),
+      bufferSize,
+      optionsJsonC,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
+    );
+
+    if (result > 0) {
+      final responseText = utf8.decode(responseBuffer.asTypedList(result), allowMalformed: true).trim();
+      try {
+        final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
+        List<VadSegment> segments = [];
+        if (jsonResponse['segments'] != null) {
+          final segmentsJson = jsonResponse['segments'] as List<dynamic>;
+          segments = segmentsJson.map((seg) {
+            final segMap = seg as Map<String, dynamic>;
+            return VadSegment(
+              start: segMap['start'] as int? ?? 0,
+              end: segMap['end'] as int? ?? 0,
+            );
+          }).toList();
+        }
+        return VadResult(
+          segments: segments,
+          totalTimeMs: (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0,
+        );
+      } catch (e) {
+        debugPrint('Unable to parse VAD response: $e');
+        return VadResult();
+      }
+    } else {
+      return VadResult();
+    }
+  } finally {
+    calloc.free(responseBuffer);
+    if (audioFilePathC != null) {
+      calloc.free(audioFilePathC);
+    }
+    calloc.free(optionsJsonC);
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
+  }
+}
+
+Future<DiarizeResult> _diarizeInIsolate(Map<String, dynamic> params) async {
+  final handle = params['handle'] as int;
+  final audioFilePath = params['audioFilePath'] as String?;
+  final bufferSize = params['bufferSize'] as int;
+  final optionsJson = params['optionsJson'] as String;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
+
+  final responseBuffer = calloc<Uint8>(bufferSize);
+  final audioFilePathC = audioFilePath?.toNativeUtf8(allocator: calloc);
+  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
+
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
+  try {
+    final result = bindings.cactusDiarize(
+      Pointer.fromAddress(handle),
+      audioFilePathC ?? nullptr,
+      responseBuffer.cast<Utf8>(),
+      bufferSize,
+      optionsJsonC,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
+    );
+
+    if (result > 0) {
+      final responseText = utf8.decode(responseBuffer.asTypedList(result), allowMalformed: true).trim();
+      try {
+        final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
+        List<double> scores = [];
+        if (jsonResponse['scores'] != null) {
+          final scoresJson = jsonResponse['scores'] as List<dynamic>;
+          scores = scoresJson.map((s) => (s as num).toDouble()).toList();
+        }
+        return DiarizeResult(
+          numSpeakers: jsonResponse['num_speakers'] as int? ?? 0,
+          scores: scores,
+          totalTimeMs: (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0,
+        );
+      } catch (e) {
+        debugPrint('Unable to parse diarize response: $e');
+        return DiarizeResult();
+      }
+    } else {
+      return DiarizeResult();
+    }
+  } finally {
+    calloc.free(responseBuffer);
+    if (audioFilePathC != null) {
+      calloc.free(audioFilePathC);
+    }
+    calloc.free(optionsJsonC);
+    if (pcmBufferPtr != null) {
+      calloc.free(pcmBufferPtr);
+    }
+  }
+}
+
+Future<SpeakerEmbeddingResult> _embedSpeakerInIsolate(Map<String, dynamic> params) async {
+  final handle = params['handle'] as int;
+  final audioFilePath = params['audioFilePath'] as String?;
+  final bufferSize = params['bufferSize'] as int;
+  final optionsJson = params['optionsJson'] as String;
+  final List<int>? pcmData = params['pcmData'] as List<int>?;
+
+  final responseBuffer = calloc<Uint8>(bufferSize);
+  final audioFilePathC = audioFilePath?.toNativeUtf8(allocator: calloc);
+  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
+
+  Pointer<Uint8>? pcmBufferPtr;
+  if (pcmData != null) {
+    final Uint8List pcmBytes = pcmData is Uint8List ? pcmData : Uint8List.fromList(pcmData);
+    pcmBufferPtr = calloc<Uint8>(pcmBytes.length);
+    final nativeList = pcmBufferPtr.asTypedList(pcmBytes.length);
+    nativeList.setAll(0, pcmBytes);
+  }
+
+  try {
+    final result = bindings.cactusEmbedSpeaker(
+      Pointer.fromAddress(handle),
+      audioFilePathC ?? nullptr,
+      responseBuffer.cast<Utf8>(),
+      bufferSize,
+      optionsJsonC,
+      pcmBufferPtr ?? nullptr,
+      pcmData?.length ?? 0,
+      nullptr,
+      0,
+    );
+
+    if (result > 0) {
+      final responseText = utf8.decode(responseBuffer.asTypedList(result), allowMalformed: true).trim();
+      try {
+        final jsonResponse = jsonDecode(responseText) as Map<String, dynamic>;
+        List<double> embedding = [];
+        if (jsonResponse['embedding'] != null) {
+          final embeddingJson = jsonResponse['embedding'] as List<dynamic>;
+          embedding = embeddingJson.map((e) => (e as num).toDouble()).toList();
+        }
+        return SpeakerEmbeddingResult(
+          embedding: embedding,
+          totalTimeMs: (jsonResponse['total_time_ms'] as num?)?.toDouble() ?? 0.0,
+        );
+      } catch (e) {
+        debugPrint('Unable to parse embed speaker response: $e');
+        return SpeakerEmbeddingResult();
+      }
+    } else {
+      return SpeakerEmbeddingResult();
+    }
+  } finally {
+    calloc.free(responseBuffer);
+    if (audioFilePathC != null) {
+      calloc.free(audioFilePathC);
+    }
     calloc.free(optionsJsonC);
     if (pcmBufferPtr != null) {
       calloc.free(pcmBufferPtr);
@@ -403,6 +771,14 @@ class CactusContext {
         for (int j = 0; j < messages[i].images.length; j++) {
           if (j > 0) messagesJsonBuffer.write(',');
           messagesJsonBuffer.write('"${_escapeJsonString(messages[i].images[j])}"');
+        }
+        messagesJsonBuffer.write(']');
+      }
+      if (messages[i].audio.isNotEmpty) {
+        messagesJsonBuffer.write(',"audio":[');
+        for (int j = 0; j < messages[i].audio.length; j++) {
+          if (j > 0) messagesJsonBuffer.write(',');
+          messagesJsonBuffer.write('"${_escapeJsonString(messages[i].audio[j])}"');
         }
         messagesJsonBuffer.write(']');
       }
@@ -442,11 +818,9 @@ class CactusContext {
     };
   }
 
-  static Future<(int?, String)> initContext(String modelPath, int contextSize) async {
-    // Run the heavy initialization in an isolate using compute
+  static Future<(int?, String)> initContext(String modelPath, int? contextSize) async {
     final isolateParams = {
       'modelPath': modelPath,
-      'contextSize': contextSize,
     };
 
     return await compute(_initContextInIsolate, isolateParams);
@@ -550,6 +924,84 @@ class CactusContext {
       'handle': handle,
       'text': text,
       'bufferSize': max(text.length * quantization, 1024),
+    });
+  }
+
+  static Future<PrefillResult> prefill(
+    int handle,
+    List<ChatMessage> messages,
+    CactusCompletionParams params, {
+    List<int>? pcmData,
+    int quantization = 8,
+  }) async {
+    final jsonData = _prepareCompletionJson(messages, params);
+    return await compute(_prefillInIsolate, {
+      'handle': handle,
+      'messagesJson': jsonData['messagesJson']!,
+      'optionsJson': jsonData['optionsJson']!,
+      'toolsJson': jsonData['toolsJson'],
+      'bufferSize': max(params.maxTokens * quantization, 2048),
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
+  }
+
+  static Future<DetectLanguageResult> detectLanguage(
+    int handle, {
+    String? audioFilePath,
+    List<int>? pcmData,
+    int bufferSize = 4096,
+  }) async {
+    return await compute(_detectLanguageInIsolate, {
+      'handle': handle,
+      'audioFilePath': audioFilePath,
+      'optionsJson': '{}',
+      'bufferSize': bufferSize,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
+  }
+
+  static Future<VadResult> vad(
+    int handle, {
+    String? audioFilePath,
+    List<int>? pcmData,
+    int bufferSize = 4096,
+  }) async {
+    return await compute(_vadInIsolate, {
+      'handle': handle,
+      'audioFilePath': audioFilePath,
+      'optionsJson': '{}',
+      'bufferSize': bufferSize,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
+  }
+
+  static Future<DiarizeResult> diarize(
+    int handle, {
+    String? audioFilePath,
+    List<int>? pcmData,
+    int bufferSize = 4096,
+  }) async {
+    return await compute(_diarizeInIsolate, {
+      'handle': handle,
+      'audioFilePath': audioFilePath,
+      'optionsJson': '{}',
+      'bufferSize': bufferSize,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
+  }
+
+  static Future<SpeakerEmbeddingResult> embedSpeaker(
+    int handle, {
+    String? audioFilePath,
+    List<int>? pcmData,
+    int bufferSize = 4096,
+  }) async {
+    return await compute(_embedSpeakerInIsolate, {
+      'handle': handle,
+      'audioFilePath': audioFilePath,
+      'optionsJson': '{}',
+      'bufferSize': bufferSize,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
     });
   }
 

@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cactus/src/models/log_record.dart';
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/utils/logging/log_buffer.dart';
-import 'package:cactus/src/utils/platform/ffi_utils.dart';
+import 'package:cactus/src/utils/platform/ffi_utils.dart' show registerApp, getDeviceId;
 
 class Supabase {
 

@@ -54,7 +54,7 @@ class CactusSTT {
     final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
     final modelPath = '${(await getApplicationDocumentsDirectory()).path}/models/$model';
 
-    final result = await CactusContext.initContext(modelPath, ((params?.contextSize) ?? defaultInitParams.contextSize)!);
+    final result = await CactusContext.initContext(modelPath, ((params?.contextSize) ?? defaultInitParams.contextSize));
     _handle = result.$1;
 
     if (_handle == null && !await _isModelDownloaded(model)) {

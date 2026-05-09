@@ -1,56 +1,21 @@
-import 'dart:io';
-
-import 'package:cactus/cactus.dart';
 import 'package:cactus/src/services/api/supabase.dart';
-import 'package:cactus/src/services/bindings.dart' as bindings;
-import 'package:ffi/ffi.dart';
+import 'package:cactus/src/utils/platform/device_info.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:ffi';
 
-
-Future<String?> registerApp(
-  String encString
-) async {
-  await _setupAndroidDataDirectory();
-  final encStringPtr = encString.toNativeUtf8();
-
+Future<String?> registerApp(String encString) async {
   try {
-    final resultPtr = bindings.registerApp(encStringPtr);
-    
-    if (resultPtr == nullptr) {
-      return null;
-    }
-    
-    // Convert the returned C string to Dart string
-    final resultString = resultPtr.toDartString();
-    
-    // Note: We don't free resultPtr here as it's managed by the C library
-    return resultString;
-  } finally {
-    malloc.free(encStringPtr);
+    final response = encString;
+    return response.isNotEmpty ? response : null;
+  } catch (e) {
+    debugPrint('Error in registerApp: $e');
+    return null;
   }
 }
 
 Future<String?> getDeviceId() async {
   try {
-    await _setupAndroidDataDirectory();
-    final currentToken = CactusConfig.cactusProKey ?? '';
-    final currentTokenPtr = currentToken.toNativeUtf8();
-    final resultPtr = bindings.getDeviceId(currentTokenPtr);
-
-    if (resultPtr == nullptr) {
-      malloc.free(currentTokenPtr);
-      return null;
-    }
-    final deviceId = resultPtr.toDartString();
-    malloc.free(resultPtr);
-    malloc.free(currentTokenPtr);
-    if (deviceId.contains('|')) {
-      final parts = deviceId.split('|');
-      CactusConfig.setProKey(parts[1]);
-      return await Supabase.registerDevice(deviceId: parts[0]);
-    }
+    final deviceData = await getDeviceMetadata();
+    final deviceId = deviceData['device_id'] as String?;
     return deviceId;
   } catch (e) {
     debugPrint('Error getting device ID: $e');
@@ -58,21 +23,16 @@ Future<String?> getDeviceId() async {
   }
 }
 
-Future<void> _setupAndroidDataDirectory() async {
-  if (Platform.isAndroid) {
+Future<String?> fetchDeviceId() async {
+  String? deviceId = await getDeviceId();
+  if (deviceId == null) {
+    debugPrint('Failed to get device ID, registering device...');
     try {
-      // Get the app's data directory
-      final Directory appDataDir = await getApplicationSupportDirectory();
-      final String dataPath = appDataDir.path;
-      
-      // Convert to native string and call the function
-      final Pointer<Utf8> nativeDataPath = dataPath.toNativeUtf8();
-      bindings.setAndroidDataDirectory(nativeDataPath);
-
-      // Clean up the allocated string
-      malloc.free(nativeDataPath);
+      final deviceData = await getDeviceMetadata();
+      return await Supabase.registerDevice(deviceData: deviceData);
     } catch (e) {
-      debugPrint('Failed to set Android data directory: $e');
+      return null;
     }
   }
+  return deviceId;
 }

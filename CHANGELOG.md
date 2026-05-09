@@ -1,3 +1,14 @@
+## v1.14.0
+- Synced engine with cactus v1.14
+- Added `prefill()`, `detectLanguage()`, `vad()`, `diarize()`, `embedSpeaker()` APIs to `CactusLM`
+- Added multimodal (vision/audio) support via `audio` field on `ChatMessage`
+- Added `confidence`, `cloudHandoff`, `thinking`, `prefillTps`, `decodeTps`, `ramUsageMb` fields to `CactusCompletionResult`
+- Added `confidence`, `cloudHandoff`, `segments` fields to `CactusTranscriptionResult`
+- Added `TranscriptionSegment`, `PrefillResult`, `DetectLanguageResult`, `VadResult`, `VadSegment`, `DiarizeResult`, `SpeakerEmbeddingResult` types
+- Updated `CactusInitParams`: `contextSize` now optional, added `corpusDir` and `cacheIndex`
+- Added `CactusConfig.setTelemetryEnvironment()`, `CactusConfig.setAppId()`, `CactusConfig.telemetryFlush()`, `CactusConfig.telemetryShutdown()`, `CactusConfig.logSetLevel()`
+- Removed `libcactus_util.so`; migrated device registration to pure Dart
+
 ## v1.3.0
 - Renamed `CactusTelemetry` to `CactusConfig` for configuration APIs
 - Added `CactusConfig.setProKey()` to enable NPU acceleration

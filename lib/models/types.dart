@@ -7,12 +7,14 @@ class ChatMessage {
   final String content;
   final String role;
   final List<String> images;
+  final List<String> audio;
   final int? timestamp;
 
   ChatMessage({
     required this.content,
     required this.role,
     this.images = const [],
+    this.audio = const [],
     this.timestamp,
   });
 
@@ -58,9 +60,15 @@ class CactusCompletionParams {
 class CactusCompletionResult {
   final bool success;
   final String response;
+  final double confidence;
+  final bool cloudHandoff;
+  final String? thinking;
   final double timeToFirstTokenMs;
   final double totalTimeMs;
   final double tokensPerSecond;
+  final double prefillTps;
+  final double decodeTps;
+  final double ramUsageMb;
   final int prefillTokens;
   final int decodeTokens;
   final int totalTokens;
@@ -69,9 +77,15 @@ class CactusCompletionResult {
   CactusCompletionResult({
     required this.success,
     required this.response,
+    this.confidence = 0.0,
+    this.cloudHandoff = false,
+    this.thinking,
     required this.timeToFirstTokenMs,
     required this.totalTimeMs,
     required this.tokensPerSecond,
+    this.prefillTps = 0.0,
+    this.decodeTps = 0.0,
+    this.ramUsageMb = 0.0,
     required this.prefillTokens,
     required this.decodeTokens,
     required this.totalTokens,
@@ -97,10 +111,14 @@ class CactusException implements Exception {
 class CactusInitParams {
   final String model;
   final int? contextSize;
+  final String? corpusDir;
+  final bool cacheIndex;
 
   CactusInitParams({
     this.model = "qwen3-0.6",
-    this.contextSize = 2048,
+    this.contextSize,
+    this.corpusDir,
+    this.cacheIndex = false,
   });
 }
 
@@ -138,6 +156,9 @@ class CactusTranscriptionParams {
 class CactusTranscriptionResult {
   final bool success;
   final String text;
+  final double confidence;
+  final bool cloudHandoff;
+  final List<TranscriptionSegment> segments;
   final double timeToFirstTokenMs;
   final double totalTimeMs;
   final double tokensPerSecond;
@@ -146,10 +167,25 @@ class CactusTranscriptionResult {
   CactusTranscriptionResult({
     required this.success,
     required this.text,
+    this.confidence = 0.0,
+    this.cloudHandoff = false,
+    this.segments = const [],
     this.timeToFirstTokenMs = 0.0,
     this.totalTimeMs = 0.0,
     this.tokensPerSecond = 0.0,
     this.errorMessage,
+  });
+}
+
+class TranscriptionSegment {
+  final double start;
+  final double end;
+  final String text;
+
+  TranscriptionSegment({
+    required this.start,
+    required this.end,
+    required this.text,
   });
 }
 
@@ -271,5 +307,77 @@ class STTInitParams {
 
   STTInitParams({
     required this.model,
+  });
+}
+
+class PrefillResult {
+  final bool success;
+  final int prefillTokens;
+  final double prefillTps;
+  final double totalTimeMs;
+  final double ramUsageMb;
+  final String? errorMessage;
+
+  PrefillResult({
+    required this.success,
+    this.prefillTokens = 0,
+    this.prefillTps = 0.0,
+    this.totalTimeMs = 0.0,
+    this.ramUsageMb = 0.0,
+    this.errorMessage,
+  });
+}
+
+class DetectLanguageResult {
+  final String language;
+  final double confidence;
+  final String languageToken;
+
+  DetectLanguageResult({
+    required this.language,
+    this.confidence = 0.0,
+    this.languageToken = '',
+  });
+}
+
+class VadResult {
+  final List<VadSegment> segments;
+  final double totalTimeMs;
+
+  VadResult({
+    this.segments = const [],
+    this.totalTimeMs = 0.0,
+  });
+}
+
+class VadSegment {
+  final int start;
+  final int end;
+
+  VadSegment({
+    required this.start,
+    required this.end,
+  });
+}
+
+class DiarizeResult {
+  final int numSpeakers;
+  final List<double> scores;
+  final double totalTimeMs;
+
+  DiarizeResult({
+    this.numSpeakers = 0,
+    this.scores = const [],
+    this.totalTimeMs = 0.0,
+  });
+}
+
+class SpeakerEmbeddingResult {
+  final List<double> embedding;
+  final double totalTimeMs;
+
+  SpeakerEmbeddingResult({
+    this.embedding = const [],
+    this.totalTimeMs = 0.0,
   });
 }

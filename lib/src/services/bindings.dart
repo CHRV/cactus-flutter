@@ -1,7 +1,6 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
 import 'package:cactus/src/models/binding.dart';
-import 'package:ffi/ffi.dart';
 
 String _getLibraryPath(String libName) {
   if (Platform.isIOS || Platform.isMacOS) {
@@ -16,39 +15,103 @@ String _getLibraryPath(String libName) {
 final DynamicLibrary cactusLib = DynamicLibrary.open(_getLibraryPath('cactus'));
 
 final cactusInit = cactusLib
-    .lookup<NativeFunction<CactusInitNative>>('cactus_init')
-    .asFunction<CactusInitDart>();
+    .lookupFunction<CactusInitNative, CactusInitDart>('cactus_init');
 
 final cactusComplete = cactusLib
-    .lookup<NativeFunction<CactusCompleteNative>>('cactus_complete')
-    .asFunction<CactusCompleteDart>();
+    .lookupFunction<CactusCompleteNative, CactusCompleteDart>('cactus_complete');
+
+final cactusPrefill = cactusLib
+    .lookupFunction<CactusPrefillNative, CactusPrefillDart>('cactus_prefill');
 
 final cactusDestroy = cactusLib
-    .lookup<NativeFunction<CactusDestroyNative>>('cactus_destroy')
-    .asFunction<CactusDestroyDart>();
+    .lookupFunction<CactusDestroyNative, CactusDestroyDart>('cactus_destroy');
 
 final cactusReset = cactusLib
-    .lookup<NativeFunction<CactusResetNative>>('cactus_reset')
-    .asFunction<CactusResetDart>();
+    .lookupFunction<CactusResetNative, CactusResetDart>('cactus_reset');
+
+final cactusStop = cactusLib
+    .lookupFunction<CactusStopNative, CactusStopDart>('cactus_stop');
+
+final cactusGetLastError = cactusLib
+    .lookupFunction<CactusGetLastErrorNative, CactusGetLastErrorDart>('cactus_get_last_error');
 
 final cactusEmbed = cactusLib
-    .lookup<NativeFunction<CactusEmbedNative>>('cactus_embed')
-    .asFunction<CactusEmbedDart>();
+    .lookupFunction<CactusEmbedNative, CactusEmbedDart>('cactus_embed');
+
+final cactusImageEmbed = cactusLib
+    .lookupFunction<CactusImageEmbedNative, CactusImageEmbedDart>('cactus_image_embed');
+
+final cactusAudioEmbed = cactusLib
+    .lookupFunction<CactusAudioEmbedNative, CactusAudioEmbedDart>('cactus_audio_embed');
 
 final cactusTranscribe = cactusLib
-    .lookup<NativeFunction<CactusTranscribeNative>>('cactus_transcribe')
-    .asFunction<CactusTranscribeDart>();
+    .lookupFunction<CactusTranscribeNative, CactusTranscribeDart>('cactus_transcribe');
 
-final DynamicLibrary cactusUtil = DynamicLibrary.open(_getLibraryPath('cactus_util'));
+final cactusDetectLanguage = cactusLib
+    .lookupFunction<CactusDetectLanguageNative, CactusDetectLanguageDart>('cactus_detect_language');
 
-final registerApp = cactusUtil
-    .lookup<NativeFunction<RegisterAppNative>>('register_app')
-    .asFunction<RegisterAppDart>();
+final cactusVad = cactusLib
+    .lookupFunction<CactusVadNative, CactusVadDart>('cactus_vad');
 
-final setAndroidDataDirectory = cactusUtil
-    .lookup<NativeFunction<Void Function(Pointer<Utf8>)>>('set_android_data_directory')
-    .asFunction<void Function(Pointer<Utf8>)>();
+final cactusDiarize = cactusLib
+    .lookupFunction<CactusDiarizeNative, CactusDiarizeDart>('cactus_diarize');
 
-final getDeviceId = cactusUtil
-    .lookup<NativeFunction<GetDeviceIdNative>>('get_device_id')
-    .asFunction<GetDeviceIdDart>();
+final cactusEmbedSpeaker = cactusLib
+    .lookupFunction<CactusEmbedSpeakerNative, CactusEmbedSpeakerDart>('cactus_embed_speaker');
+
+final cactusStreamTranscribeStart = cactusLib
+    .lookupFunction<CactusStreamTranscribeStartNative, CactusStreamTranscribeStartDart>('cactus_stream_transcribe_start');
+
+final cactusStreamTranscribeProcess = cactusLib
+    .lookupFunction<CactusStreamTranscribeProcessNative, CactusStreamTranscribeProcessDart>('cactus_stream_transcribe_process');
+
+final cactusStreamTranscribeStop = cactusLib
+    .lookupFunction<CactusStreamTranscribeStopNative, CactusStreamTranscribeStopDart>('cactus_stream_transcribe_stop');
+
+final cactusTokenize = cactusLib
+    .lookupFunction<CactusTokenizeNative, CactusTokenizeDart>('cactus_tokenize');
+
+final cactusScoreWindow = cactusLib
+    .lookupFunction<CactusScoreWindowNative, CactusScoreWindowDart>('cactus_score_window');
+
+final cactusRagQuery = cactusLib
+    .lookupFunction<CactusRagQueryNative, CactusRagQueryDart>('cactus_rag_query');
+
+final cactusIndexInit = cactusLib
+    .lookupFunction<CactusIndexInitNative, CactusIndexInitDart>('cactus_index_init');
+
+final cactusIndexAdd = cactusLib
+    .lookupFunction<CactusIndexAddNative, CactusIndexAddDart>('cactus_index_add');
+
+final cactusIndexDelete = cactusLib
+    .lookupFunction<CactusIndexDeleteNative, CactusIndexDeleteDart>('cactus_index_delete');
+
+final cactusIndexGet = cactusLib
+    .lookupFunction<CactusIndexGetNative, CactusIndexGetDart>('cactus_index_get');
+
+final cactusIndexQuery = cactusLib
+    .lookupFunction<CactusIndexQueryNative, CactusIndexQueryDart>('cactus_index_query');
+
+final cactusIndexCompact = cactusLib
+    .lookupFunction<CactusIndexCompactNative, CactusIndexCompactDart>('cactus_index_compact');
+
+final cactusIndexDestroy = cactusLib
+    .lookupFunction<CactusIndexDestroyNative, CactusIndexDestroyDart>('cactus_index_destroy');
+
+final cactusSetTelemetryEnvironment = cactusLib
+    .lookupFunction<CactusSetTelemetryEnvironmentNative, CactusSetTelemetryEnvironmentDart>('cactus_set_telemetry_environment');
+
+final cactusSetAppId = cactusLib
+    .lookupFunction<CactusSetAppIdNative, CactusSetAppIdDart>('cactus_set_app_id');
+
+final cactusTelemetryFlush = cactusLib
+    .lookupFunction<CactusTelemetryFlushNative, CactusTelemetryFlushDart>('cactus_telemetry_flush');
+
+final cactusTelemetryShutdown = cactusLib
+    .lookupFunction<CactusTelemetryShutdownNative, CactusTelemetryShutdownDart>('cactus_telemetry_shutdown');
+
+final cactusLogSetLevel = cactusLib
+    .lookupFunction<CactusLogSetLevelNative, CactusLogSetLevelDart>('cactus_log_set_level');
+
+final cactusLogSetCallback = cactusLib
+    .lookupFunction<CactusLogSetCallbackNative, CactusLogSetCallbackDart>('cactus_log_set_callback');

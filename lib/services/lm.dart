@@ -64,7 +64,7 @@ class CactusLM {
     final model = params?.model?? _lastInitializedModel ?? defaultInitParams.model;
     final modelPath = '${(await getApplicationDocumentsDirectory()).path}/models/$model';
 
-    final result = await CactusContext.initContext(modelPath, ((params?.contextSize) ?? defaultInitParams.contextSize)!);
+    final result = await CactusContext.initContext(modelPath, ((params?.contextSize) ?? defaultInitParams.contextSize));
     _handle = result.$1; 
 
     if(_handle == null && !await _isModelDownloaded(model)) {
@@ -238,6 +238,93 @@ class CactusLM {
         _logEmbeddingTelemetry(null, model, success: false, message: e.toString());
         rethrow;
       }
+    });
+  }
+
+  Future<PrefillResult> prefill({
+    required List<ChatMessage> messages,
+    CactusCompletionParams? params,
+    List<int>? pcmData,
+  }) async {
+    return await _handleLock.synchronized(() async {
+      final completionParams = params ?? defaultCompletionParams;
+      final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
+      final currentHandle = await _getValidatedHandle(model: model);
+      final quantization = (await Supabase.getModel(model))?.quantization ?? 8;
+
+      if (currentHandle != null) {
+        return await CactusContext.prefill(currentHandle, messages, completionParams, pcmData: pcmData, quantization: quantization);
+      }
+
+      throw Exception('Model $_lastInitializedModel is not downloaded. Please download it before prefilling.');
+    });
+  }
+
+  Future<DetectLanguageResult> detectLanguage({
+    String? audioFilePath,
+    List<int>? pcmData,
+    String? modelName,
+  }) async {
+    return await _handleLock.synchronized(() async {
+      final model = modelName ?? _lastInitializedModel ?? defaultInitParams.model;
+      final currentHandle = await _getValidatedHandle(model: model);
+
+      if (currentHandle != null) {
+        return await CactusContext.detectLanguage(currentHandle, audioFilePath: audioFilePath, pcmData: pcmData);
+      }
+
+      throw Exception('Model $_lastInitializedModel is not downloaded. Please download it before detecting language.');
+    });
+  }
+
+  Future<VadResult> vad({
+    String? audioFilePath,
+    List<int>? pcmData,
+    String? modelName,
+  }) async {
+    return await _handleLock.synchronized(() async {
+      final model = modelName ?? _lastInitializedModel ?? defaultInitParams.model;
+      final currentHandle = await _getValidatedHandle(model: model);
+
+      if (currentHandle != null) {
+        return await CactusContext.vad(currentHandle, audioFilePath: audioFilePath, pcmData: pcmData);
+      }
+
+      throw Exception('Model $_lastInitializedModel is not downloaded. Please download it before VAD.');
+    });
+  }
+
+  Future<DiarizeResult> diarize({
+    String? audioFilePath,
+    List<int>? pcmData,
+    String? modelName,
+  }) async {
+    return await _handleLock.synchronized(() async {
+      final model = modelName ?? _lastInitializedModel ?? defaultInitParams.model;
+      final currentHandle = await _getValidatedHandle(model: model);
+
+      if (currentHandle != null) {
+        return await CactusContext.diarize(currentHandle, audioFilePath: audioFilePath, pcmData: pcmData);
+      }
+
+      throw Exception('Model $_lastInitializedModel is not downloaded. Please download it before diarizing.');
+    });
+  }
+
+  Future<SpeakerEmbeddingResult> embedSpeaker({
+    String? audioFilePath,
+    List<int>? pcmData,
+    String? modelName,
+  }) async {
+    return await _handleLock.synchronized(() async {
+      final model = modelName ?? _lastInitializedModel ?? defaultInitParams.model;
+      final currentHandle = await _getValidatedHandle(model: model);
+
+      if (currentHandle != null) {
+        return await CactusContext.embedSpeaker(currentHandle, audioFilePath: audioFilePath, pcmData: pcmData);
+      }
+
+      throw Exception('Model $_lastInitializedModel is not downloaded. Please download it before embedding speaker.');
     });
   }
 

@@ -2,7 +2,7 @@ import 'package:cactus/src/models/log_record.dart';
 import 'package:cactus/src/services/api/supabase.dart';
 import 'package:cactus/src/utils/platform/device_info.dart';
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/utils/platform/ffi_utils.dart';
+import 'package:cactus/src/utils/platform/ffi_utils.dart' show getDeviceId;
 import 'package:cactus/src/utils/cactus_id.dart';
 import 'package:flutter/foundation.dart';
 

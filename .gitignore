@@ -29,3 +29,9 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
+
+# OpenCode
+.agents/
+
+specs
+skills-lock.json
