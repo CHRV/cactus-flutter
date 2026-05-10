@@ -196,42 +196,104 @@ class CactusStreamedTranscriptionResult {
   CactusStreamedTranscriptionResult({required this.stream, required this.result});
 }
 
-class CactusModel {
-  final DateTime createdAt;
-  final String slug;
-  final String downloadUrl;
-  final int sizeMb;
-  final bool supportsToolCalling;
-  final bool supportsVision;
-  final String name;
-  bool isDownloaded;
-  final int quantization;
+class CactusProInfo {
+  final String apple;
 
-  CactusModel({
-    required this.createdAt,
-    required this.slug,
-    required this.downloadUrl,
+  CactusProInfo({required this.apple});
+
+  factory CactusProInfo.fromJson(Map<String, dynamic> json) {
+    return CactusProInfo(apple: json['apple'] as String);
+  }
+
+  Map<String, dynamic> toJson() => {'apple': apple};
+}
+
+class CactusQuantizationInfo {
+  final int sizeMb;
+  final String url;
+  final CactusProInfo? pro;
+
+  CactusQuantizationInfo({
     required this.sizeMb,
-    required this.supportsToolCalling,
-    required this.supportsVision,
-    required this.name,
-    this.isDownloaded = false,
-    this.quantization = 8
+    required this.url,
+    this.pro,
   });
 
-  factory CactusModel.fromJson(Map<String, dynamic> json) {
-    return CactusModel(
-      createdAt: DateTime.parse(json['created_at'] as String),
-      slug: json['slug'] as String,
+  factory CactusQuantizationInfo.fromJson(Map<String, dynamic> json) {
+    return CactusQuantizationInfo(
       sizeMb: json['size_mb'] as int,
-      downloadUrl: json['download_url'] as String,
-      supportsToolCalling: json['supports_tool_calling'] as bool,
-      supportsVision: json['supports_vision'] as bool,
-      name: json['name'] as String,
-      isDownloaded: false,
-      quantization: json['quantization'] as int? ?? 8,
+      url: json['url'] as String,
+      pro: json['pro'] != null
+          ? CactusProInfo.fromJson(json['pro'] as Map<String, dynamic>)
+          : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'size_mb': sizeMb,
+    'url': url,
+    if (pro != null) 'pro': pro!.toJson(),
+  };
+}
+
+class CactusModel {
+  final String slug;
+  final String name;
+  final List<String> capabilities;
+  final Map<String, CactusQuantizationInfo> quantization;
+  bool isDownloaded;
+
+  DateTime? _createdAt;
+
+  CactusModel({
+    required this.slug,
+    required this.name,
+    required this.capabilities,
+    required this.quantization,
+    this.isDownloaded = false,
+    DateTime? createdAt,
+  }) : _createdAt = createdAt;
+
+  String get downloadUrl => quantization['int4']?.url ?? '';
+  bool get supportsToolCalling => capabilities.contains('tools');
+  bool get supportsVision => capabilities.contains('vision');
+  int get sizeMb => quantization['int4']?.sizeMb ?? 0;
+  DateTime get createdAt => _createdAt ?? DateTime(2000);
+
+  factory CactusModel.fromJson(Map<String, dynamic> json) {
+    final Map<String, CactusQuantizationInfo> quantMap = {};
+    final quantJson = json['quantization'] as Map<String, dynamic>?;
+    if (quantJson != null) {
+      for (final entry in quantJson.entries) {
+        quantMap[entry.key] = CactusQuantizationInfo.fromJson(
+          entry.value as Map<String, dynamic>,
+        );
+      }
+    }
+
+    return CactusModel(
+      slug: json['slug'] as String,
+      name: json['name'] as String? ?? json['slug'] as String,
+      capabilities: (json['capabilities'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      quantization: quantMap,
+      isDownloaded: json['is_downloaded'] as bool? ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'slug': slug,
+    'name': name,
+    'capabilities': capabilities,
+    'quantization': quantization.map((k, v) => MapEntry(k, v.toJson())),
+    'is_downloaded': isDownloaded,
+    if (_createdAt != null) 'created_at': _createdAt!.toIso8601String(),
+  };
 }
 
 enum CompletionMode {

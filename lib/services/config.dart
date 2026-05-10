@@ -6,6 +6,18 @@ import 'package:ffi/ffi.dart';
 
 class CactusConfig {
 
+  static const String _defaultSupabaseUrl = 'https://vlqqczxwyaodtcdmdmlw.supabase.co';
+  static const String _defaultSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscXFjenh3eWFvZHRjZG1kbWx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MTg2MzIsImV4cCI6MjA2NzA5NDYzMn0.nBzqGuK9j6RZ6mOPWU2boAC_5H9XDs-fPpo5P3WZYbI';
+  static const String _defaultHuggingFaceOrg = 'Cactus-Compute';
+
+  static String? _customSupabaseUrl;
+  static String? _customSupabaseKey;
+  static String? _customHuggingFaceOrg;
+
+  static String get supabaseUrl => _customSupabaseUrl?.isNotEmpty == true ? _customSupabaseUrl! : _defaultSupabaseUrl;
+  static String get supabaseKey => _customSupabaseKey?.isNotEmpty == true ? _customSupabaseKey! : _defaultSupabaseKey;
+  static String get huggingFaceOrg => _customHuggingFaceOrg?.isNotEmpty == true ? _customHuggingFaceOrg! : _defaultHuggingFaceOrg;
+
   static String? telemetryToken;
   static bool isTelemetryEnabled = true;
   static String? cactusProKey;
@@ -16,6 +28,24 @@ class CactusConfig {
 
   static setProKey(String token) {
     cactusProKey = token.isEmpty ? null : token;
+  }
+
+  static setSupabaseUrl(String url) {
+    _customSupabaseUrl = url.isEmpty ? null : url;
+  }
+
+  static setSupabaseKey(String key) {
+    _customSupabaseKey = key.isEmpty ? null : key;
+  }
+
+  static setHuggingFaceOrg(String org) {
+    _customHuggingFaceOrg = org.isEmpty ? null : org;
+  }
+
+  static resetConfig() {
+    _customSupabaseUrl = null;
+    _customSupabaseKey = null;
+    _customHuggingFaceOrg = null;
   }
 
   static bool get isInitialized => Telemetry.isInitialized;

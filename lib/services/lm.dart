@@ -6,7 +6,7 @@ import 'package:cactus/services/tool_filter.dart';
 import 'package:cactus/src/services/context.dart';
 import 'package:cactus/src/utils/models/download.dart';
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/api/supabase.dart';
+import 'package:cactus/src/services/api/huggingface.dart';
 import 'package:cactus/src/services/api/openrouter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -32,27 +32,41 @@ class CactusLM {
 
   Future<void> downloadModel({
     final String model = "qwen3-0.6",
+    final String quantization = "int4",
+    final bool pro = false,
     final CactusProgressCallback? downloadProcessCallback,
   }) async {
     if (await _isModelDownloaded(model)) {
       return;
     }
     
-    final currentModel = await Supabase.getModel(model);
+    final currentModel = await HuggingFace.getModel(model);
     if (currentModel == null) {
       throw Exception('Failed to get model $model');
     }
 
-    final actualFilename = currentModel.downloadUrl.split('?').first.split('/').last;
+    final quantInfo = currentModel.quantization[quantization];
+    if (quantInfo == null) {
+      throw Exception('Model $model does not have $quantization quantization');
+    }
+
+    String downloadUrl;
+    if (pro && quantInfo.pro != null) {
+      downloadUrl = quantInfo.pro!.apple;
+    } else {
+      downloadUrl = quantInfo.url;
+    }
+
+    final actualFilename = downloadUrl.split('?').first.split('/').last;
     final task = DownloadTask(
-      url: currentModel.downloadUrl,
+      url: downloadUrl,
       filename: actualFilename,
       folder: currentModel.slug,
     );
 
     final success = await DownloadService.downloadAndExtractModels([task], downloadProcessCallback);
     if (!success) {
-      throw Exception('Failed to download and extract model $model from ${currentModel.downloadUrl}');
+      throw Exception('Failed to download and extract model $model from $downloadUrl');
     }
   }
 
@@ -91,7 +105,7 @@ class CactusLM {
       CactusCompletionParams completionParams = params ?? defaultCompletionParams;
       final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
       int? currentHandle = await _getValidatedHandle(model: model);
-      int quantization = (await Supabase.getModel(model))?.quantization ?? 8;
+      int quantization = await _getQuantizationLevel(model);
 
       if (currentHandle != null) {
         if(completionParams.tools != null) {
@@ -101,7 +115,6 @@ class CactusLM {
             toolsToUse = await _filterTools(messages, completionParams.tools!);
           }
           
-          // Create params with filtered tools
           completionParams = CactusCompletionParams(
             temperature: completionParams.temperature,
             topK: completionParams.topK,
@@ -153,18 +166,17 @@ class CactusLM {
     CactusCompletionParams completionParams = params ?? defaultCompletionParams;
     final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
     int? currentHandle = await _getValidatedHandle(model: model);
-    int quantization = (await Supabase.getModel(model))?.quantization ?? 8;
+      int quantization = await _getQuantizationLevel(model);
 
-    if (currentHandle != null) {
-      if(completionParams.tools != null) {
-        reset();
-        List<CactusTool>? toolsToUse = completionParams.tools;
-        if (enableToolFiltering && toolsToUse != null && toolsToUse.isNotEmpty) {
-          toolsToUse = await _filterTools(messages, toolsToUse);
-        }
+      if (currentHandle != null) {
+        if(completionParams.tools != null) {
+          reset();
+          List<CactusTool>? toolsToUse = completionParams.tools;
+          if (enableToolFiltering && toolsToUse != null && toolsToUse.isNotEmpty) {
+            toolsToUse = await _filterTools(messages, toolsToUse);
+          }
 
-        // Create params with filtered tools
-        completionParams = CactusCompletionParams(
+          completionParams = CactusCompletionParams(
           temperature: completionParams.temperature,
           topK: completionParams.topK,
           topP: completionParams.topP,
@@ -224,7 +236,7 @@ class CactusLM {
       
       final model = modelName ?? _lastInitializedModel ?? defaultInitParams.model;
       final currentHandle = await _getValidatedHandle(model: model);
-      final quantization = (await Supabase.getModel(model))?.quantization ?? 8;
+      final quantization = await _getQuantizationLevel(model);
 
       try {
         if(currentHandle != null) {
@@ -250,7 +262,7 @@ class CactusLM {
       final completionParams = params ?? defaultCompletionParams;
       final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
       final currentHandle = await _getValidatedHandle(model: model);
-      final quantization = (await Supabase.getModel(model))?.quantization ?? 8;
+      final quantization = await _getQuantizationLevel(model);
 
       if (currentHandle != null) {
         return await CactusContext.prefill(currentHandle, messages, completionParams, pcmData: pcmData, quantization: quantization);
@@ -340,7 +352,7 @@ class CactusLM {
 
   Future<List<CactusModel>> getModels() async {
     if (_models.isEmpty) {
-      _models.addAll(await Supabase.fetchModels());
+      _models.addAll(await HuggingFace.fetchModels());
       for (var model in _models) {
         model.isDownloaded = await _isModelDownloaded(model.slug);
       }
@@ -399,6 +411,13 @@ class CactusLM {
 
   Future<bool> _isModelDownloaded(String modelName) async {
     return await DownloadService.modelExists(modelName);
+  }
+
+  Future<int> _getQuantizationLevel(String model) async {
+    final cactusModel = await HuggingFace.getModel(model);
+    if (cactusModel == null) return 8;
+    if (cactusModel.quantization.containsKey('int4') && !cactusModel.quantization.containsKey('int8')) return 4;
+    return 8;
   }
 }
 

@@ -12,9 +12,6 @@ import 'package:cactus/src/utils/platform/ffi_utils.dart' show registerApp, getD
 
 class Supabase {
 
-  static const String _supabaseUrl = 'https://vlqqczxwyaodtcdmdmlw.supabase.co';
-  static const String _supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscXFjenh3eWFvZHRjZG1kbWx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MTg2MzIsImV4cCI6MjA2NzA5NDYzMn0.nBzqGuK9j6RZ6mOPWU2boAC_5H9XDs-fPpo5P3WZYbI';
-
   static Future<void> sendLogRecord(LogRecord record) async {
     if (!CactusConfig.isTelemetryEnabled) {
       return;
@@ -62,11 +59,11 @@ class Supabase {
   static Future<bool> _sendLogRecordsBatch(List<LogRecord> records) async {
     final client = HttpClient();
     try {
-      final uri = Uri.parse('$_supabaseUrl/rest/v1/logs');
+      final uri = Uri.parse('${CactusConfig.supabaseUrl}/rest/v1/logs');
       final request = await client.postUrl(uri);
       
-      request.headers.set('apikey', _supabaseKey);
-      request.headers.set('Authorization', 'Bearer $_supabaseKey');
+      request.headers.set('apikey', CactusConfig.supabaseKey);
+      request.headers.set('Authorization', 'Bearer ${CactusConfig.supabaseKey}');
       request.headers.set('Content-Type', 'application/json');
       request.headers.set('Prefer', 'return=minimal');
       request.headers.set('Content-Profile', 'cactus');
@@ -104,7 +101,7 @@ class Supabase {
     
     try {
       final client = HttpClient();
-      final uri = Uri.parse('$_supabaseUrl/functions/v1/device-registration');
+      final uri = Uri.parse('${CactusConfig.supabaseUrl}/functions/v1/device-registration');
       final request = await client.postUrl(uri);
       
       // Set headers
@@ -132,14 +129,15 @@ class Supabase {
     }
   }
 
+  @Deprecated('Use HuggingFace.getModel() instead')
   static Future<CactusModel?> getModel(String slug) async {
     try {
       final client = HttpClient();
-      final uri = Uri.parse('$_supabaseUrl/functions/v1/get-models?slug=$slug&sdk_name=flutter&sdk_version=$packageVersion');
+      final uri = Uri.parse('${CactusConfig.supabaseUrl}/functions/v1/get-models?slug=$slug&sdk_name=flutter&sdk_version=$packageVersion');
       final request = await client.getUrl(uri);
       
-      request.headers.set('apikey', _supabaseKey);
-      request.headers.set('Authorization', 'Bearer $_supabaseKey');
+      request.headers.set('apikey', CactusConfig.supabaseKey);
+      request.headers.set('Authorization', 'Bearer ${CactusConfig.supabaseKey}');
       
       final response = await request.close();
       
@@ -157,14 +155,15 @@ class Supabase {
     }
   }
 
+  @Deprecated('Use HuggingFace.fetchModels() instead')
   static Future<List<CactusModel>> fetchModels() async {
     try {
       final client = HttpClient();
-      final uri = Uri.parse('$_supabaseUrl/functions/v1/get-models?sdk_name=flutter&sdk_version=$packageVersion');
+      final uri = Uri.parse('${CactusConfig.supabaseUrl}/functions/v1/get-models?sdk_name=flutter&sdk_version=$packageVersion');
       final request = await client.getUrl(uri);
       
-      request.headers.set('apikey', _supabaseKey);
-      request.headers.set('Authorization', 'Bearer $_supabaseKey');
+      request.headers.set('apikey', CactusConfig.supabaseKey);
+      request.headers.set('Authorization', 'Bearer ${CactusConfig.supabaseKey}');
       
       final response = await request.close();
       
@@ -189,14 +188,14 @@ class Supabase {
     final client = HttpClient();
 
     try {
-      String url = '$_supabaseUrl/rest/v1/whisper?select=*';
+      String url = '${CactusConfig.supabaseUrl}/rest/v1/whisper?select=*';
       if (provider != null) {
         url += '&provider=eq.$provider';
       }
       
       final request = await client.getUrl(Uri.parse(url));
-      request.headers.set('apikey', _supabaseKey);
-      request.headers.set('Authorization', 'Bearer $_supabaseKey');
+      request.headers.set('apikey', CactusConfig.supabaseKey);
+      request.headers.set('Authorization', 'Bearer ${CactusConfig.supabaseKey}');
       request.headers.set('Accept-Profile', 'cactus');
 
       final response = await request.close();
