@@ -1,9 +1,9 @@
-
 import 'package:cactus/cactus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:read_pdf_text/read_pdf_text.dart';
+import '../widgets/model_selector.dart';
 
 class RAGPage extends StatefulWidget {
   const RAGPage({super.key});
@@ -27,9 +27,12 @@ class _RAGPageState extends State<RAGPage> {
   bool isSearching = false;
   bool isClearingDatabase = false;
   
-  String outputText = 'Ready to start. Click "Download Model" to begin.';
+  String outputText = 'Ready to start. Select a model and click "Download Model" to begin.';
   List<ChunkSearchResult> searchResults = [];
   DatabaseStats? dbStats;
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
@@ -53,7 +56,9 @@ class _RAGPageState extends State<RAGPage> {
     
     try {
       await lm.downloadModel(
-        model: 'qwen3-0.6-embed',
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -89,7 +94,7 @@ class _RAGPageState extends State<RAGPage> {
     });
     
     try {
-      await lm.initializeModel(params: CactusInitParams(model: 'qwen3-0.6-embed'));
+      await lm.initializeModel(params: CactusInitParams(model: selectedModel!.slug));
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Click "Initialize RAG" to set up the database.';
@@ -290,121 +295,50 @@ class _RAGPageState extends State<RAGPage> {
         foregroundColor: Colors.black,
         elevation: 1,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "RAG (Retrieval-Augmented Generation) Demo",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+      body: Column(
+        children: [
+          ModelSelectorWidget(
+            initialModel: 'qwen3-embedding-0.6b',
+            capabilityFilter: 'embed',
+            onModelSelected: (model) => setState(() { selectedModel = model; }),
+            onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+            onProChanged: (p) => setState(() { usePro = p; }),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "RAG (Retrieval-Augmented Generation) Demo",
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "This example demonstrates how to store PDF documents, convert them to searchable embeddings, and perform semantic search to find relevant content based on your queries.",
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "This example demonstrates how to store PDF documents, convert them to searchable embeddings, and perform semantic search to find relevant content based on your queries.",
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Setup buttons
-            ElevatedButton(
-              onPressed: isDownloading ? null : downloadModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isDownloading
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Downloading...'),
-                    ],
-                  )
-                : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: isInitializing ? null : initializeModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isInitializing
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Initializing...'),
-                    ],
-                  )
-                : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: isInitializingRAG ? null : initializeRAG,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isInitializingRAG
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Initializing RAG...'),
-                    ],
-                  )
-                : Text(isRAGInitialized ? 'RAG Initialized ✓' : 'Initialize RAG'),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: (isDownloading || isInitializing || isInitializingRAG || isAddingDocuments || !isModelLoaded || !isRAGInitialized) ? null : addDocument,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: isDownloading ? null : downloadModel,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                     ),
-                    child: isAddingDocuments
+                    child: isDownloading
                       ? const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -417,23 +351,19 @@ class _RAGPageState extends State<RAGPage> {
                               ),
                             ),
                             SizedBox(width: 8),
-                            Text('Adding...'),
+                            Text('Downloading...'),
                           ],
                         )
-                      : const Text('Add Docs'),
+                      : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 1,
-                  child: ElevatedButton(
-                    onPressed: (isDownloading || isInitializing || isInitializingRAG || isClearingDatabase || !isRAGInitialized) ? null : clearDatabase,
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: isInitializing ? null : initializeModel,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
                     ),
-                    child: isClearingDatabase
+                    child: isInitializing
                       ? const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -442,163 +372,238 @@ class _RAGPageState extends State<RAGPage> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
                             SizedBox(width: 8),
-                            Text('Clearing...'),
+                            Text('Initializing...'),
                           ],
                         )
-                      : const Text('Clear Data'),
+                      : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
                   ),
-                ),
-              ],
-            ),
-
-            // Database stats
-            if (dbStats != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Text(
-                  'Database: ${dbStats!.totalDocuments} documents',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 20),
-
-            // Search section
-            const Text(
-              'Search Documents:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _queryController,
-              style: const TextStyle(color: Colors.black),
-              decoration: const InputDecoration(
-                labelText: 'Search Query',
-                labelStyle: TextStyle(color: Colors.grey),
-                hintText: 'Enter your question here...',
-                hintStyle: TextStyle(color: Colors.grey),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isDownloading || isInitializing || isInitializingRAG || isSearching || !isModelLoaded || !isRAGInitialized) ? null : searchDocuments,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isSearching
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: isInitializingRAG ? null : initializeRAG,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isInitializingRAG
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Initializing RAG...'),
+                          ],
+                        )
+                      : Text(isRAGInitialized ? 'RAG Initialized ✓' : 'Initialize RAG'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
                     children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: (isDownloading || isInitializing || isInitializingRAG || isAddingDocuments || !isModelLoaded || !isRAGInitialized) ? null : addDocument,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: isAddingDocuments
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Adding...'),
+                                ],
+                              )
+                            : const Text('Add Docs'),
                         ),
                       ),
-                      SizedBox(width: 8),
-                      Text('Searching...'),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton(
+                          onPressed: (isDownloading || isInitializing || isInitializingRAG || isClearingDatabase || !isRAGInitialized) ? null : clearDatabase,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                          ),
+                          child: isClearingDatabase
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Clearing...'),
+                                ],
+                              )
+                            : const Text('Clear Data'),
+                        ),
+                      ),
                     ],
-                  )
-                : const Text('Search'),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Output section
-            Text(
-              'Status: $outputText',
-              style: TextStyle(
-                color: outputText.contains('Error') ? Colors.red : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Search results
-            if (searchResults.isNotEmpty) ...[
-              const Text(
-                'Search Results:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-              ),
-              const SizedBox(height: 10),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: searchResults.length,
-                itemBuilder: (context, index) {
-                  final result = searchResults[index];
-                  return Card(
-                    color: Colors.white,
-                    elevation: 1,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Colors.grey, width: 0.5),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  result.chunk.document.target?.fileName ?? 'Unknown Document',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            result.chunk.content,
-                            style: const TextStyle(fontSize: 14, color: Colors.black),
-                          ),
-                        ],
+                  ),
+                  if (dbStats != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'Database: ${dbStats!.totalDocuments} documents',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
                       ),
                     ),
-                  );
-                },
+                  ],
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Search Documents:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _queryController,
+                    style: const TextStyle(color: Colors.black),
+                    decoration: const InputDecoration(
+                      labelText: 'Search Query',
+                      labelStyle: TextStyle(color: Colors.grey),
+                      hintText: 'Enter your question here...',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: (isDownloading || isInitializing || isInitializingRAG || isSearching || !isModelLoaded || !isRAGInitialized) ? null : searchDocuments,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isSearching
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Searching...'),
+                          ],
+                        )
+                      : const Text('Search'),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Status: $outputText',
+                    style: TextStyle(
+                      color: outputText.contains('Error') ? Colors.red : Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (searchResults.isNotEmpty) ...[
+                    const Text(
+                      'Search Results:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                    ),
+                    const SizedBox(height: 10),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = searchResults[index];
+                        return Card(
+                          color: Colors.white,
+                          elevation: 1,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: const BorderSide(color: Colors.grey, width: 0.5),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        result.chunk.document.target?.fileName ?? 'Unknown Document',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  result.chunk.content,
+                                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else if (!isSearching && isRAGInitialized) ...[
+                    const SizedBox(height: 40),
+                    const Center(
+                      child: Text(
+                        'No search results yet. Enter a query and click "Search" to find relevant documents.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ] else if (!isSearching && isRAGInitialized) ...[
-              const SizedBox(height: 40),
-              const Center(
-                child: Text(
-                  'No search results yet. Enter a query and click "Search" to find relevant documents.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

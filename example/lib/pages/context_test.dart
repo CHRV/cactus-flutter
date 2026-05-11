@@ -1,5 +1,6 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
+import '../widgets/model_selector.dart';
 
 class ContextTestPage extends StatefulWidget {
   const ContextTestPage({super.key});
@@ -23,31 +24,19 @@ class _ContextTestPageState extends State<ContextTestPage> {
   int testPrefillTokens = 0;
   int testDecodeTokens = 0;
   int testTotalTokens = 0;
-  String model = 'qwen3-0.6';
-  List<CactusModel> availableModels = [];
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
     super.initState();
-    getAvailableModels();
   }
 
   @override
   void dispose() {
     lm.unload();
     super.dispose();
-  }
-
-  Future<void> getAvailableModels() async {
-    try {
-      final models = await lm.getModels();
-      debugPrint("Available models: ${models.map((m) => "${m.slug}: ${m.sizeMb}MB").join(", ")}");
-      setState(() {
-        availableModels = models;
-      });
-    } catch (e) {
-      debugPrint("Error fetching models: $e");
-    }
   }
 
   Future<void> downloadModel() async {
@@ -58,7 +47,9 @@ class _ContextTestPageState extends State<ContextTestPage> {
 
     try {
       await lm.downloadModel(
-        model: model,
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -95,7 +86,7 @@ class _ContextTestPageState extends State<ContextTestPage> {
 
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: model)
+        params: CactusInitParams(model: selectedModel!.slug)
       );
       setState(() {
         isModelLoaded = true;
@@ -133,13 +124,11 @@ class _ContextTestPageState extends State<ContextTestPage> {
     });
 
     try {
-      // Build system message with 230 context items
       StringBuffer systemContent = StringBuffer('/no_think You are helpful. ');
       for (int i = 0; i < 230; i++) {
         systemContent.write('Context $i: Background knowledge. ');
       }
 
-      // Build user message with 230 data items
       StringBuffer userContent = StringBuffer();
       for (int i = 0; i < 230; i++) {
         final dataValue = i * 3.14159;
@@ -207,7 +196,6 @@ class _ContextTestPageState extends State<ContextTestPage> {
                 const SizedBox(height: 56),
                 const SizedBox(height: 10),
 
-                // Buttons section
                 ElevatedButton(
                   onPressed: isDownloading ? null : downloadModel,
                   style: ElevatedButton.styleFrom(
@@ -285,7 +273,6 @@ class _ContextTestPageState extends State<ContextTestPage> {
 
                 const SizedBox(height: 20),
 
-                // Output section
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -310,13 +297,12 @@ class _ContextTestPageState extends State<ContextTestPage> {
                             const Divider(color: Colors.black),
                             const SizedBox(height: 16),
 
-                            // Performance Metrics Section
                             const Text(
                               'Performance Metrics:',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
                             ),
                             const SizedBox(height: 8),
-                            _buildMetricRow('Model', model),
+                            _buildMetricRow('Model', selectedModel?.slug ?? ''),
                             _buildMetricRow('Time to First Token', '${testTTFT.toStringAsFixed(2)} ms'),
                             _buildMetricRow('Total Time', '${testTotalTime.toStringAsFixed(2)} ms'),
                             _buildMetricRow('Tokens Per Second', testTPS.toStringAsFixed(2)),
@@ -328,7 +314,6 @@ class _ContextTestPageState extends State<ContextTestPage> {
                             const Divider(color: Colors.black),
                             const SizedBox(height: 16),
 
-                            // Response Section
                             const Text(
                               'Response:',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
@@ -351,18 +336,12 @@ class _ContextTestPageState extends State<ContextTestPage> {
             top: 16,
             left: 16,
             right: 16,
-            child: DropdownMenu(
-              hintText: 'Select Model',
-              expandedInsets: EdgeInsets.zero,
-              dropdownMenuEntries: availableModels.map((model) => DropdownMenuEntry(value: model.slug, label: '${model.slug} (${model.sizeMb}MB)')).toList(),
-              initialSelection: model,
-              onSelected: (String? value) {
-                if (value != null) {
-                  setState(() {
-                    model = value;
-                  });
-                }
-              },
+            child: ModelSelectorWidget(
+              initialModel: 'qwen3-0.6b',
+              capabilityFilter: 'completion',
+              onModelSelected: (model) => setState(() { selectedModel = model; }),
+              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+              onProChanged: (p) => setState(() { usePro = p; }),
             ),
           ),
         ],

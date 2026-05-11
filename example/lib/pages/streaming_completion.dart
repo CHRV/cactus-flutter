@@ -1,5 +1,6 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
+import '../widgets/model_selector.dart';
 
 class StreamingCompletionPage extends StatefulWidget {
   const StreamingCompletionPage({super.key});
@@ -20,25 +21,13 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
-  String model = 'qwen3-0.6';
-  List<CactusModel> availableModels = [];
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
     super.initState();
-    getAvailableModels();
-  }
-
-  Future<void> getAvailableModels() async {
-    try {
-      final models = await lm.getModels();
-      debugPrint("Available models: ${models.map((m) => "${m.slug}: ${m.sizeMb}MB").join(", ")}");
-      setState(() {
-        availableModels = models;
-      });
-    } catch (e) {
-      debugPrint("Error fetching models: $e");
-    }
   }
 
   @override
@@ -55,7 +44,9 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     
     try {
       await lm.downloadModel(
-        model: model,
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -92,7 +83,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: model)
+        params: CactusInitParams(model: selectedModel!.slug)
       );
       setState(() {
         isModelLoaded = true;
@@ -319,7 +310,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
                           Column(
                             children: [
                               const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(model, style: const TextStyle(color: Colors.black)),
+                              Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
                             ],
                           ),
                           Column(
@@ -348,21 +339,12 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
             top: 16,
             left: 16,
             right: 16,
-            child: DropdownMenu(
-              expandedInsets: EdgeInsets.zero,
-              dropdownMenuEntries: availableModels
-                  .map((model) => DropdownMenuEntry(
-                      value: model.slug,
-                      label: '${model.slug} (${model.sizeMb}MB)'))
-                  .toList(),
-              initialSelection: model,
-              onSelected: (String? value) {
-                if (value != null) {
-                  setState(() {
-                    model = value;
-                  });
-                }
-              },
+            child: ModelSelectorWidget(
+              initialModel: 'qwen3-0.6b',
+              capabilityFilter: 'completion',
+              onModelSelected: (model) => setState(() { selectedModel = model; }),
+              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+              onProChanged: (p) => setState(() { usePro = p; }),
             ),
           ),
         ],

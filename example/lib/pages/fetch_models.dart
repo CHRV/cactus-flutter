@@ -27,6 +27,7 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
     });
 
     try {
+      await HuggingFace.refreshRegistry();
       final models = await lm.getModels();
       setState(() {
         availableModels = models;
@@ -44,79 +45,149 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
     }
   }
 
+  Color _capabilityColor(String cap) {
+    switch (cap) {
+      case 'tools': return Colors.purple;
+      case 'vision': return Colors.blue;
+      case 'embed': return Colors.teal;
+      case 'embedding': return Colors.teal;
+      case 'audio': return Colors.orange;
+      case 'completion': return Colors.green;
+      case 'chat': return Colors.green;
+      default: return Colors.grey;
+    }
+  }
+
+  Future<void> _downloadModel(CactusModel model, String quantization, bool pro) async {
+    try {
+      await lm.downloadModel(
+        model: model.slug,
+        quantization: quantization,
+        pro: pro,
+      );
+      if (mounted) {
+        setState(() {
+          model.isDownloaded = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${model.slug} downloaded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error downloading ${model.slug}: $e')),
+        );
+      }
+    }
+  }
+
   Widget _buildModelCard(CactusModel model) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              model.name,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+    String selectedQuant = 'int4';
+    bool usePro = false;
+
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      model.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: model.isDownloaded
+                            ? Colors.green.shade100
+                            : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        model.isDownloaded ? 'Downloaded' : 'Available',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: model.isDownloaded
+                              ? Colors.green.shade800
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Slug: ${model.slug}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (model.capabilities.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: model.capabilities.map((cap) => Chip(
+                      label: Text(cap),
+                      labelStyle: const TextStyle(color: Colors.white, fontSize: 11),
+                      backgroundColor: _capabilityColor(cap),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    )).toList(),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: model.quantization.entries.map((entry) {
+                    final isSelected = entry.key == selectedQuant;
+                    return ChoiceChip(
+                      label: Text('${entry.key}: ${entry.value.sizeMb} MB${entry.value.pro != null ? ' ★' : ''}'),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setCardState(() { selectedQuant = entry.key; usePro = false; });
+                      },
+                    );
+                  }).toList(),
+                ),
+                if (model.quantization[selectedQuant]?.pro != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
                     children: [
-                      Text(
-                        'Size: ${model.sizeMb} MB',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      Switch(
+                        value: usePro,
+                        onChanged: (v) => setCardState(() { usePro = v; }),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Slug: ${model.slug}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      const Text('Apple-optimized (Pro)', style: TextStyle(fontSize: 13)),
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: model.isDownloaded 
-                        ? Colors.green.shade100
-                        : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    model.isDownloaded ? 'Downloaded' : 'Available',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: model.isDownloaded
-                          ? Colors.green.shade800
-                          : Colors.grey.shade700,
+                ],
+                if (!model.isDownloaded) ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => _downloadModel(model, selectedQuant, usePro),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
                     ),
+                    child: const Text('Download'),
                   ),
-                ),
+                ],
               ],
             ),
-            if (model.supportsToolCalling || model.supportsVision) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Features: ${[
-                  if (model.supportsToolCalling) 'Tool Calling',
-                  if (model.supportsVision) 'Vision'
-                ].join(', ')}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -169,7 +240,6 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
       ),
       body: Column(
         children: [
-          // Information Card
           Card(
             margin: const EdgeInsets.all(16.0),
             child: Padding(
@@ -192,8 +262,6 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
               ),
             ),
           ),
-
-          // Status Card
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Padding(
@@ -228,10 +296,7 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Models List
           Expanded(
             child: availableModels.isNotEmpty
                 ? ListView.builder(

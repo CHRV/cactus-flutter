@@ -1,5 +1,6 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
+import '../widgets/model_selector.dart';
 
 class ChatMessageWithMetrics {
   final ChatMessage message;
@@ -21,14 +22,17 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final cactusLM = CactusLM();
   final List<ChatMessageWithMetrics> chatMessages = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
+  bool _isSetup = false;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
     super.initState();
-    _setupCactusLM();
   }
 
   @override
@@ -111,8 +115,14 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _setupCactusLM() async {
-    await cactusLM.downloadModel();
-    await cactusLM.initializeModel(params: CactusInitParams(model: "qwen3-0.6", contextSize: 4096));
+    if (selectedModel == null) return;
+    setState(() { _isLoading = true; });
+    await cactusLM.downloadModel(
+      model: selectedModel!.slug,
+      quantization: selectedQuantization,
+      pro: usePro,
+    );
+    await cactusLM.initializeModel(params: CactusInitParams(model: selectedModel!.slug, contextSize: 4096));
     cactusLM.generateCompletionStream(
       messages: [ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system")],
       params: CactusCompletionParams(
@@ -121,6 +131,7 @@ class _ChatPageState extends State<ChatPage> {
     );
     setState(() {
       _isLoading = false;
+      _isSetup = true;
     });
   }
 
@@ -146,7 +157,48 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: Column(
         children: [
-          // Chat messages
+          ModelSelectorWidget(
+            initialModel: 'qwen3-0.6b',
+            capabilityFilter: 'completion',
+            onModelSelected: (model) => setState(() { selectedModel = model; }),
+            onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+            onProChanged: (p) => setState(() { usePro = p; }),
+          ),
+          if (!_isSetup) ...[
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.chat_bubble, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select a model above and set up the chat',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: selectedModel != null && !_isLoading ? _setupCactusLM : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Setup Chat'),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+          ] else ...[
           Expanded(
             child: chatMessages.isEmpty
                 ? const Center(
@@ -175,7 +227,6 @@ class _ChatPageState extends State<ChatPage> {
                     },
                   ),
           ),
-          // Input area
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -230,6 +281,7 @@ class _ChatPageState extends State<ChatPage> {
               ],
             ),
           ),
+          ],
         ],
       ),
     );

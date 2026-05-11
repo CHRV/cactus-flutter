@@ -1,5 +1,6 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
+import '../widgets/model_selector.dart';
 
 class EmbeddingPage extends StatefulWidget {
   const EmbeddingPage({super.key});
@@ -15,8 +16,11 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
   bool isDownloading = false;
   bool isInitializing = false;
   bool isGenerating = false;
-  String outputText = 'Ready to start. Click "Download Model" to begin.';
+  String outputText = 'Ready to start. Select a model and click "Download Model" to begin.';
   String? lastResponse;
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
@@ -37,6 +41,9 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
     
     try {
       await lm.downloadModel(
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -72,7 +79,9 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
     });
     
     try {
-      await lm.initializeModel();
+      await lm.initializeModel(
+        params: CactusInitParams(model: selectedModel!.slug)
+      );
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Ready to generate embeddings.';
@@ -139,150 +148,157 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
         foregroundColor: Colors.black,
         elevation: 1,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Text Embedding Demo",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+      body: Column(
+        children: [
+          ModelSelectorWidget(
+            initialModel: 'qwen3-embedding-0.6b',
+            capabilityFilter: 'embed',
+            onModelSelected: (model) => setState(() { selectedModel = model; }),
+            onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+            onProChanged: (p) => setState(() { usePro = p; }),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Text Embedding Demo",
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Convert text into numerical vectors (embeddings) that capture semantic meaning. These vectors can be used for similarity search, clustering, and other ML tasks.",
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Convert text into numerical vectors (embeddings) that capture semantic meaning. These vectors can be used for similarity search, clustering, and other ML tasks.",
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: isDownloading ? null : downloadModel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Buttons section
-            ElevatedButton(
-              onPressed: isDownloading ? null : downloadModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isDownloading
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Downloading...'),
-                    ],
-                  )
-                : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: isInitializing ? null : initializeModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isInitializing
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Initializing...'),
-                    ],
-                  )
-                : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded) ? null : generateEmbeddings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isGenerating
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Generating...'),
-                    ],
-                  )
-                : const Text('Run Embedding Generation Example'),
-            ),
-
-            const SizedBox(height: 20),
-            
-            // Output section
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.white,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Output:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                    child: isDownloading
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Downloading...'),
+                          ],
+                        )
+                      : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: isInitializing ? null : initializeModel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
                     ),
-                    const SizedBox(height: 8),
-                    
-                    Text(outputText, style: const TextStyle(color: Colors.black)),
-                    if (lastResponse != null) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Response:',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                    child: isInitializing
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Initializing...'),
+                          ],
+                        )
+                      : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded) ? null : generateEmbeddings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isGenerating
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Generating...'),
+                          ],
+                        )
+                      : const Text('Run Embedding Generation Example'),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
                       ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Output:',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(outputText, style: const TextStyle(color: Colors.black)),
+                          if (lastResponse != null) ...[
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Response:',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                            ),
+                            const SizedBox(height: 4),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -31,7 +31,7 @@ class CactusLM {
   });
 
   Future<void> downloadModel({
-    final String model = "qwen3-0.6",
+    final String model = "qwen3-0.6b",
     final String quantization = "int4",
     final bool pro = false,
     final CactusProgressCallback? downloadProcessCallback,

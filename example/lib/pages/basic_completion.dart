@@ -1,5 +1,6 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
+import '../widgets/model_selector.dart';
 
 class BasicCompletionPage extends StatefulWidget {
   const BasicCompletionPage({super.key});
@@ -19,31 +20,19 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
-  String model = 'qwen3-0.6';
-  List<CactusModel> availableModels = [];
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
 
   @override
   void initState() {
     super.initState();
-    getAvailableModels();
   }
 
   @override
   void dispose() {
     lm.unload();
     super.dispose();
-  }
-
-  Future<void> getAvailableModels() async {
-    try {
-      final models = await lm.getModels();
-      debugPrint("Available models: ${models.map((m) => "${m.slug}: ${m.sizeMb}MB").join(", ")}");
-      setState(() {
-        availableModels = models;
-      });
-    } catch (e) {
-      debugPrint("Error fetching models: $e");
-    }
   }
 
   Future<void> downloadModel() async {
@@ -54,7 +43,9 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
     
     try {
       await lm.downloadModel(
-        model: model,
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -91,7 +82,7 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: model)
+        params: CactusInitParams(model: selectedModel!.slug)
       );
       setState(() {
         isModelLoaded = true;
@@ -179,7 +170,6 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
                   height: 56,
                 ),
                 const SizedBox(height: 10),
-            // Buttons section
             ElevatedButton(
               onPressed: isDownloading ? null : downloadModel,
               style: ElevatedButton.styleFrom(
@@ -257,7 +247,6 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
 
             const SizedBox(height: 20),
             
-            // Output section
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -295,7 +284,7 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
                           Column(
                             children: [
                               const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(model, style: const TextStyle(color: Colors.black)),
+                              Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
                             ],
                           ),
                           Column(
@@ -324,18 +313,12 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
             top: 16,
             left: 16,
             right: 16,
-            child: DropdownMenu(
-              hintText: 'Select Model',
-              expandedInsets: EdgeInsets.zero,
-              dropdownMenuEntries: availableModels.map((model) => DropdownMenuEntry(value: model.slug, label: '${model.slug} (${model.sizeMb}MB)')).toList(),
-              initialSelection: model,
-              onSelected: (String? value) {
-                if (value != null) {
-                  setState(() {
-                    model = value;
-                  });
-                }
-              },
+            child: ModelSelectorWidget(
+              initialModel: 'qwen3-0.6b',
+              capabilityFilter: 'completion',
+              onModelSelected: (model) => setState(() { selectedModel = model; }),
+              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+              onProChanged: (p) => setState(() { usePro = p; }),
             ),
           ),
         ],

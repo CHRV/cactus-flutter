@@ -6,6 +6,22 @@ import 'package:cactus/services/config.dart';
 import 'package:cactus/src/version.dart';
 import 'package:flutter/foundation.dart';
 
+const _kKnownCapabilities = <String>{
+  'completion',
+  'tools',
+  'embed',
+  'vision',
+  'transcription',
+  'vad',
+  'audio',
+  'speech-embed',
+  'image-embed',
+  'text-embed',
+  'speaker-embed',
+  'diarization',
+  'apple-npu',
+};
+
 class HuggingFace {
   static Future<Map<String, CactusModel>>? _registryCache;
 
@@ -48,23 +64,22 @@ class HuggingFace {
         throw Exception('Cannot parse runtime version: $packageVersion');
       }
 
-      final compatibleTags = <_Semver>[];
+      final compatible = <MapEntry<String, SemverVersion>>[];
       for (final tag in tags) {
         final tagName = (tag as Map<String, dynamic>)['name'] as String?;
         if (tagName == null) continue;
         final sv = _parseSemver(tagName.replaceFirst(RegExp(r'^v'), ''));
         if (sv != null && sv <= runtimeVersion) {
-          compatibleTags.add(sv);
+          compatible.add(MapEntry(tagName, sv));
         }
       }
 
-      if (compatibleTags.isEmpty) {
+      if (compatible.isEmpty) {
         throw Exception('No compatible version found for $modelId (runtime: v$packageVersion)');
       }
 
-      compatibleTags.sort();
-      final best = compatibleTags.last;
-      return 'v${best.major}.${best.minor}.${best.patch}';
+      compatible.sort((a, b) => a.value.compareTo(b.value));
+      return compatible.last.key;
     } finally {
       client.close();
     }
@@ -77,9 +92,8 @@ class HuggingFace {
     required String quantization,
     bool apple = false,
   }) {
-    final org = CactusConfig.huggingFaceOrg;
     final suffix = apple ? '-apple' : '';
-    return 'https://huggingface.co/$org/$repoId/resolve/$version/weights/$key-$quantization$suffix.zip';
+    return 'https://huggingface.co/$repoId/resolve/$version/weights/$key-$quantization$suffix.zip';
   }
 
   static Future<Map<String, CactusModel>> _fetchRegistry() async {
@@ -131,7 +145,7 @@ class HuggingFace {
     final int4File = fileNames.where((f) => f.startsWith('weights/') && f.endsWith('-int4.zip')).toList();
     final int8File = fileNames.where((f) => f.startsWith('weights/') && f.endsWith('-int8.zip')).toList();
 
-    if (int4File.isEmpty || int8File.isEmpty) return null;
+    if (int4File.isEmpty && int8File.isEmpty) return null;
 
     String key;
     {
@@ -142,8 +156,7 @@ class HuggingFace {
 
     final capabilities = tags
         .whereType<String>()
-        .where((t) => !t.contains(':'))
-        .where((t) => t != repoId.split('/').last.toLowerCase())
+        .where(_kKnownCapabilities.contains)
         .toList();
 
     String version;
@@ -235,32 +248,40 @@ class HuggingFace {
 
   static HttpClient _createClient() => HttpClient();
 
-  static _Semver? _parseSemver(String version) {
-    final match = RegExp(r'^(\d+)\.(\d+)\.(\d+)$').firstMatch(version);
+  @visibleForTesting
+  static SemverVersion? parseSemver(String version) {
+    final match = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?$').firstMatch(version);
     if (match == null) return null;
-    return _Semver(
+    return SemverVersion(
       int.parse(match.group(1)!),
       int.parse(match.group(2)!),
-      int.parse(match.group(3)!),
+      match.group(3) != null ? int.parse(match.group(3)!) : 0,
     );
+  }
+
+  static SemverVersion? _parseSemver(String version) => parseSemver(version);
+
+  @visibleForTesting
+  static List<String> extractCapabilities(List<dynamic> tags) {
+    return tags.whereType<String>().where(_kKnownCapabilities.contains).toList();
   }
 }
 
-class _Semver implements Comparable<_Semver> {
+class SemverVersion implements Comparable<SemverVersion> {
   final int major;
   final int minor;
   final int patch;
 
-  const _Semver(this.major, this.minor, this.patch);
+  const SemverVersion(this.major, this.minor, this.patch);
 
   @override
-  int compareTo(_Semver other) {
+  int compareTo(SemverVersion other) {
     if (major != other.major) return major.compareTo(other.major);
     if (minor != other.minor) return minor.compareTo(other.minor);
     return patch.compareTo(other.patch);
   }
 
-  bool operator <=(_Semver other) => compareTo(other) <= 0;
+  bool operator <=(SemverVersion other) => compareTo(other) <= 0;
 
   @override
   String toString() => '$major.$minor.$patch';

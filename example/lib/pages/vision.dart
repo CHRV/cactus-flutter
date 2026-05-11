@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import '../widgets/model_selector.dart';
 
 class VisionPage extends StatefulWidget {
   const VisionPage({super.key});
@@ -24,31 +25,14 @@ class _VisionPageState extends State<VisionPage> {
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
-  String? model;
-  List<CactusModel> availableModels = [];
+  CactusModel? selectedModel;
+  String selectedQuantization = 'int4';
+  bool usePro = false;
   String? selectedImagePath;
 
   @override
   void initState() {
     super.initState();
-    getAvailableModels();
-  }
-
-  Future<void> getAvailableModels() async {
-    try {
-      final models = await lm.getModels();
-      // Filter only vision-capable models
-      final visionModels = models.where((m) => m.supportsVision).toList();
-      debugPrint("Available vision models: ${visionModels.map((m) => "${m.slug}: ${m.sizeMb}MB").join(", ")}");
-      setState(() {
-        availableModels = visionModels;
-        if (visionModels.isNotEmpty && model == null) {
-          model = visionModels.first.slug;
-        }
-      });
-    } catch (e) {
-      debugPrint("Error fetching models: $e");
-    }
   }
 
   @override
@@ -67,18 +51,15 @@ class _VisionPageState extends State<VisionPage> {
     );
 
     if (image != null) {
-      // Copy to app directory for permanent storage
       final appDir = await getApplicationDocumentsDirectory();
       final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final savedPath = p.join(appDir.path, 'images', fileName);
 
-      // Create images directory if it doesn't exist
       final imageDir = Directory(p.dirname(savedPath));
       if (!await imageDir.exists()) {
         await imageDir.create(recursive: true);
       }
 
-      // Copy the image file
       await File(image.path).copy(savedPath);
       return savedPath;
     }
@@ -97,7 +78,7 @@ class _VisionPageState extends State<VisionPage> {
   }
 
   Future<void> downloadModel() async {
-    if (model == null) {
+    if (selectedModel == null) {
       setState(() {
         outputText = 'Please select a vision model first.';
       });
@@ -111,7 +92,9 @@ class _VisionPageState extends State<VisionPage> {
 
     try {
       await lm.downloadModel(
-        model: model!,
+        model: selectedModel!.slug,
+        quantization: selectedQuantization,
+        pro: usePro,
         downloadProcessCallback: (progress, status, isError) {
           setState(() {
             if (isError) {
@@ -141,7 +124,7 @@ class _VisionPageState extends State<VisionPage> {
   }
 
   Future<void> initializeModel() async {
-    if (model == null) {
+    if (selectedModel == null) {
       setState(() {
         outputText = 'Please select a vision model first.';
       });
@@ -155,7 +138,7 @@ class _VisionPageState extends State<VisionPage> {
 
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: model!)
+        params: CactusInitParams(model: selectedModel!.slug)
       );
       setState(() {
         isModelLoaded = true;
@@ -216,7 +199,6 @@ class _VisionPageState extends State<VisionPage> {
 
       await for (final chunk in streamedResult.stream) {
         setState(() {
-          // Hide processing indicator once streaming starts
           if (!isStreaming) {
             isGenerating = false;
             isStreaming = true;
@@ -279,13 +261,11 @@ class _VisionPageState extends State<VisionPage> {
               children: [
                 const SizedBox(height: 56),
                 const SizedBox(height: 10),
-
-                // Download Model and Initialize Model in same row
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: isDownloading || model == null ? null : downloadModel,
+                        onPressed: isDownloading || selectedModel == null ? null : downloadModel,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
@@ -312,7 +292,7 @@ class _VisionPageState extends State<VisionPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: isInitializing || model == null ? null : initializeModel,
+                        onPressed: isInitializing || selectedModel == null ? null : initializeModel,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
@@ -339,8 +319,6 @@ class _VisionPageState extends State<VisionPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-
-                // Pick/Change Image and Analyze Image in same row
                 Row(
                   children: [
                     Expanded(
@@ -385,8 +363,6 @@ class _VisionPageState extends State<VisionPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Image preview section
                 if (selectedImagePath != null)
                   Container(
                     height: 150,
@@ -403,8 +379,6 @@ class _VisionPageState extends State<VisionPage> {
                       ),
                     ),
                   ),
-
-                // Output section
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -441,7 +415,7 @@ class _VisionPageState extends State<VisionPage> {
                               Column(
                                 children: [
                                   const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                  Text(model ?? '', style: const TextStyle(color: Colors.black)),
+                                  Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
                                 ],
                               ),
                               Column(
@@ -470,24 +444,16 @@ class _VisionPageState extends State<VisionPage> {
             top: 16,
             left: 16,
             right: 16,
-            child: DropdownMenu(
-              expandedInsets: EdgeInsets.zero,
-              dropdownMenuEntries: availableModels
-                  .map((model) => DropdownMenuEntry(
-                      value: model.slug,
-                      label: '${model.slug} (${model.sizeMb}MB)'))
-                  .toList(),
-              initialSelection: model,
-              onSelected: (String? value) {
-                if (value != null) {
-                  setState(() {
-                    model = value;
-                    // Reset states when model changes
-                    isModelDownloaded = false;
-                    isModelLoaded = false;
-                  });
-                }
-              },
+            child: ModelSelectorWidget(
+              initialModel: 'qwen3-0.6b',
+              capabilityFilter: 'vision',
+              onModelSelected: (model) => setState(() {
+                selectedModel = model;
+                isModelDownloaded = false;
+                isModelLoaded = false;
+              }),
+              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
+              onProChanged: (p) => setState(() { usePro = p; }),
             ),
           ),
         ],

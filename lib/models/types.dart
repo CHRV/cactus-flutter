@@ -115,7 +115,7 @@ class CactusInitParams {
   final bool cacheIndex;
 
   CactusInitParams({
-    this.model = "qwen3-0.6",
+    this.model = "qwen3-0.6b",
     this.contextSize,
     this.corpusDir,
     this.cacheIndex = false,
