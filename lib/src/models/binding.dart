@@ -2,12 +2,15 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
 final class CactusModelOpaque extends Opaque {}
+
 typedef CactusModel = Pointer<CactusModelOpaque>;
 
 final class CactusIndexOpaque extends Opaque {}
+
 typedef CactusIndex = Pointer<CactusIndexOpaque>;
 
 final class CactusStreamOpaque extends Opaque {}
+
 typedef CactusStream = Pointer<CactusStreamOpaque>;
 
 typedef CactusTokenCallbackNative = Void Function(
@@ -15,8 +18,8 @@ typedef CactusTokenCallbackNative = Void Function(
 typedef CactusTokenCallbackDart = void Function(
     Pointer<Utf8> token, int tokenId, Pointer<Void> userData);
 
-typedef CactusLogCallbackNative = Void Function(
-    Int32 level, Pointer<Utf8> component, Pointer<Utf8> message, Pointer<Void> userData);
+typedef CactusLogCallbackNative = Void Function(Int32 level,
+    Pointer<Utf8> component, Pointer<Utf8> message, Pointer<Void> userData);
 
 typedef CactusInitNative = CactusModel Function(
     Pointer<Utf8> modelPath, Pointer<Utf8> corpusDir, Bool cacheIndex);
@@ -357,9 +360,13 @@ typedef CactusIndexDestroyNative = Void Function(CactusIndex index);
 typedef CactusIndexDestroyDart = void Function(CactusIndex index);
 
 typedef CactusSetTelemetryEnvironmentNative = Void Function(
-    Pointer<Utf8> framework, Pointer<Utf8> cacheLocation, Pointer<Utf8> version);
+    Pointer<Utf8> framework,
+    Pointer<Utf8> cacheLocation,
+    Pointer<Utf8> version);
 typedef CactusSetTelemetryEnvironmentDart = void Function(
-    Pointer<Utf8> framework, Pointer<Utf8> cacheLocation, Pointer<Utf8> version);
+    Pointer<Utf8> framework,
+    Pointer<Utf8> cacheLocation,
+    Pointer<Utf8> version);
 
 typedef CactusSetAppIdNative = Void Function(Pointer<Utf8> appId);
 typedef CactusSetAppIdDart = void Function(Pointer<Utf8> appId);
@@ -374,6 +381,8 @@ typedef CactusLogSetLevelNative = Void Function(Int32 level);
 typedef CactusLogSetLevelDart = void Function(int level);
 
 typedef CactusLogSetCallbackNative = Void Function(
-    Pointer<NativeFunction<CactusLogCallbackNative>> callback, Pointer<Void> userData);
+    Pointer<NativeFunction<CactusLogCallbackNative>> callback,
+    Pointer<Void> userData);
 typedef CactusLogSetCallbackDart = void Function(
-    Pointer<NativeFunction<CactusLogCallbackNative>> callback, Pointer<Void> userData);
+    Pointer<NativeFunction<CactusLogCallbackNative>> callback,
+    Pointer<Void> userData);

@@ -1,96 +1,435 @@
-import 'tools.dart';
-
 typedef CactusTokenCallback = bool Function(String token);
 typedef CactusProgressCallback = void Function(double? progress, String statusMessage, bool isError);
 
-class ChatMessage {
-  final String content;
-  final String role;
-  final List<String> images;
-  final List<String> audio;
-  final int? timestamp;
+class CactusModelOptions {
+  final String quantization;
+  final bool pro;
 
-  ChatMessage({
-    required this.content,
-    required this.role,
-    this.images = const [],
-    this.audio = const [],
-    this.timestamp,
+  const CactusModelOptions({
+    this.quantization = 'int8',
+    this.pro = false,
   });
+}
 
-  @override
-  bool operator ==(Object other) => other is ChatMessage && role == other.role && content == other.content;
-  
-  @override
-  int get hashCode => role.hashCode ^ content.hashCode;
+class CactusLMMessage {
+  final String role;
+  final String? content;
+  final List<String> images;
+
+  CactusLMMessage({
+    required this.role,
+    this.content,
+    this.images = const [],
+  });
 
   Map<String, dynamic> toJson() => {
     'role': role,
-    'content': content,
-    if (timestamp != null) 'timestamp': timestamp,
+    if (content != null) 'content': content,
+    if (images.isNotEmpty) 'images': images,
   };
 }
 
-class CactusCompletionParams {
-  final String? model;
+class CactusLMTool {
+  final String name;
+  final String description;
+  final Map<String, dynamic> parameters;
+
+  CactusLMTool({
+    required this.name,
+    required this.description,
+    required this.parameters,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'description': description,
+    'parameters': parameters,
+  };
+}
+
+class FunctionCall {
+  final String name;
+  final Map<String, dynamic> arguments;
+
+  FunctionCall({required this.name, required this.arguments});
+}
+
+class CactusLMCompleteOptions {
   final double? temperature;
   final int? topK;
   final double? topP;
   final int maxTokens;
   final List<String> stopSequences;
-  final List<CactusTool>? tools;
-  final CompletionMode completionMode;
-  final String? cactusToken;
   final bool? forceTools;
+  final bool? telemetryEnabled;
+  final double? confidenceThreshold;
+  final bool? includeStopSequences;
+  final bool? enableThinking;
 
-  CactusCompletionParams({
-    this.model,
+  const CactusLMCompleteOptions({
     this.temperature,
     this.topK,
     this.topP,
     this.maxTokens = 512,
-    this.stopSequences = const ["<|im_end|>", "<end_of_turn>"],
-    this.tools,
-    this.completionMode = CompletionMode.local,
-    this.cactusToken,
+    this.stopSequences = const ['<|im_end|>', '<end_of_turn>'],
     this.forceTools,
+    this.telemetryEnabled,
+    this.confidenceThreshold,
+    this.includeStopSequences,
+    this.enableThinking,
   });
 }
 
-class CactusCompletionResult {
+class CactusLMCompleteResult {
   final bool success;
   final String response;
-  final double confidence;
-  final bool cloudHandoff;
   final String? thinking;
+  final List<FunctionCall>? functionCalls;
+  final bool? cloudHandoff;
+  final double? confidence;
   final double timeToFirstTokenMs;
   final double totalTimeMs;
-  final double tokensPerSecond;
-  final double prefillTps;
-  final double decodeTps;
-  final double ramUsageMb;
   final int prefillTokens;
+  final double prefillTps;
   final int decodeTokens;
+  final double decodeTps;
   final int totalTokens;
-  final List<ToolCall> toolCalls;
+  final double? ramUsageMb;
 
-  CactusCompletionResult({
+  CactusLMCompleteResult({
     required this.success,
     required this.response,
-    this.confidence = 0.0,
-    this.cloudHandoff = false,
     this.thinking,
+    this.functionCalls,
+    this.cloudHandoff,
+    this.confidence,
     required this.timeToFirstTokenMs,
     required this.totalTimeMs,
-    required this.tokensPerSecond,
-    this.prefillTps = 0.0,
-    this.decodeTps = 0.0,
-    this.ramUsageMb = 0.0,
     required this.prefillTokens,
+    required this.prefillTps,
     required this.decodeTokens,
+    required this.decodeTps,
     required this.totalTokens,
-    this.toolCalls = const [],
+    this.ramUsageMb,
   });
+}
+
+class CactusLMEmbedResult {
+  final List<double> embedding;
+
+  CactusLMEmbedResult({required this.embedding});
+}
+
+class CactusLMImageEmbedResult {
+  final List<double> embedding;
+
+  CactusLMImageEmbedResult({required this.embedding});
+}
+
+class CactusLMPrefillResult {
+  final bool success;
+  final String? error;
+  final int prefillTokens;
+  final double prefillTps;
+  final double totalTimeMs;
+  final double ramUsageMb;
+
+  CactusLMPrefillResult({
+    required this.success,
+    this.error,
+    this.prefillTokens = 0,
+    this.prefillTps = 0.0,
+    this.totalTimeMs = 0.0,
+    this.ramUsageMb = 0.0,
+  });
+}
+
+class CactusLMTokenizeResult {
+  final List<int> tokens;
+
+  CactusLMTokenizeResult({required this.tokens});
+}
+
+class CactusLMScoreWindowResult {
+  final double score;
+
+  CactusLMScoreWindowResult({required this.score});
+}
+
+class RagQueryChunk {
+  final double score;
+  final String source;
+  final String content;
+
+  RagQueryChunk({required this.score, required this.source, required this.content});
+}
+
+class CactusLMRagQueryResult {
+  final List<RagQueryChunk> chunks;
+  final String? error;
+
+  CactusLMRagQueryResult({this.chunks = const [], this.error});
+}
+
+class CactusSTTTranscribeOptions {
+  final double? temperature;
+  final int? topK;
+  final double? topP;
+  final int maxTokens;
+  final List<String> stopSequences;
+  final bool? useVad;
+  final bool? telemetryEnabled;
+  final double? confidenceThreshold;
+  final double? cloudHandoffThreshold;
+  final bool? includeStopSequences;
+
+  const CactusSTTTranscribeOptions({
+    this.temperature,
+    this.topK,
+    this.topP,
+    this.maxTokens = 384,
+    this.stopSequences = const ['<|startoftranscript|>'],
+    this.useVad,
+    this.telemetryEnabled,
+    this.confidenceThreshold,
+    this.cloudHandoffThreshold,
+    this.includeStopSequences,
+  });
+}
+
+class CactusSTTTranscribeResult {
+  final bool success;
+  final String response;
+  final bool? cloudHandoff;
+  final double? confidence;
+  final double timeToFirstTokenMs;
+  final double totalTimeMs;
+  final int prefillTokens;
+  final double prefillTps;
+  final int decodeTokens;
+  final double decodeTps;
+  final int totalTokens;
+  final double? ramUsageMb;
+
+  CactusSTTTranscribeResult({
+    required this.success,
+    required this.response,
+    this.cloudHandoff,
+    this.confidence,
+    required this.timeToFirstTokenMs,
+    required this.totalTimeMs,
+    required this.prefillTokens,
+    required this.prefillTps,
+    required this.decodeTokens,
+    required this.decodeTps,
+    required this.totalTokens,
+    this.ramUsageMb,
+  });
+}
+
+class CactusSTTAudioEmbedResult {
+  final List<double> embedding;
+
+  CactusSTTAudioEmbedResult({required this.embedding});
+}
+
+class CactusSTTStreamTranscribeStartOptions {
+  final double? confirmationThreshold;
+  final int? minChunkSize;
+  final bool? telemetryEnabled;
+  final String? language;
+
+  const CactusSTTStreamTranscribeStartOptions({
+    this.confirmationThreshold,
+    this.minChunkSize,
+    this.telemetryEnabled,
+    this.language,
+  });
+}
+
+class CactusSTTStreamTranscribeProcessResult {
+  final bool success;
+  final String confirmed;
+  final String pending;
+  final double? bufferDurationMs;
+  final double? confidence;
+  final bool? cloudHandoff;
+  final double? timeToFirstTokenMs;
+  final double? totalTimeMs;
+  final int? prefillTokens;
+  final double? prefillTps;
+  final int? decodeTokens;
+  final double? decodeTps;
+  final int? totalTokens;
+  final double? ramUsageMb;
+
+  CactusSTTStreamTranscribeProcessResult({
+    required this.success,
+    required this.confirmed,
+    required this.pending,
+    this.bufferDurationMs,
+    this.confidence,
+    this.cloudHandoff,
+    this.timeToFirstTokenMs,
+    this.totalTimeMs,
+    this.prefillTokens,
+    this.prefillTps,
+    this.decodeTokens,
+    this.decodeTps,
+    this.totalTokens,
+    this.ramUsageMb,
+  });
+}
+
+class CactusSTTStreamTranscribeStopResult {
+  final bool success;
+  final String confirmed;
+
+  CactusSTTStreamTranscribeStopResult({required this.success, required this.confirmed});
+}
+
+class CactusSTTDetectLanguageResult {
+  final String language;
+  final double? confidence;
+
+  CactusSTTDetectLanguageResult({required this.language, this.confidence});
+}
+
+class CactusSTTDetectLanguageOptions {
+  final bool? useVad;
+
+  const CactusSTTDetectLanguageOptions({this.useVad});
+}
+
+class CactusAudioVADOptions {
+  final double? threshold;
+  final double? negThreshold;
+  final int? minSpeechDurationMs;
+  final double? maxSpeechDurationS;
+  final int? minSilenceDurationMs;
+  final int? speechPadMs;
+  final int? windowSizeSamples;
+  final int? samplingRate;
+  final int? minSilenceAtMaxSpeech;
+  final bool? useMaxPossSilAtMaxSpeech;
+
+  const CactusAudioVADOptions({
+    this.threshold,
+    this.negThreshold,
+    this.minSpeechDurationMs,
+    this.maxSpeechDurationS,
+    this.minSilenceDurationMs,
+    this.speechPadMs,
+    this.windowSizeSamples,
+    this.samplingRate,
+    this.minSilenceAtMaxSpeech,
+    this.useMaxPossSilAtMaxSpeech,
+  });
+}
+
+class CactusAudioVADSegment {
+  final int start;
+  final int end;
+
+  CactusAudioVADSegment({required this.start, required this.end});
+}
+
+class CactusAudioVADResult {
+  final List<CactusAudioVADSegment> segments;
+  final double totalTime;
+  final double ramUsage;
+
+  CactusAudioVADResult({this.segments = const [], required this.totalTime, required this.ramUsage});
+}
+
+class CactusAudioDiarizeOptions {
+  final int? stepMs;
+  final double? threshold;
+  final int? numSpeakers;
+  final int? minSpeakers;
+  final int? maxSpeakers;
+
+  const CactusAudioDiarizeOptions({
+    this.stepMs,
+    this.threshold,
+    this.numSpeakers,
+    this.minSpeakers,
+    this.maxSpeakers,
+  });
+}
+
+class CactusAudioDiarizeResult {
+  final bool success;
+  final String? error;
+  final int numSpeakers;
+  final List<double> scores;
+  final double totalTimeMs;
+  final double ramUsageMb;
+
+  CactusAudioDiarizeResult({
+    required this.success,
+    this.error,
+    this.numSpeakers = 0,
+    this.scores = const [],
+    this.totalTimeMs = 0.0,
+    this.ramUsageMb = 0.0,
+  });
+}
+
+class CactusAudioEmbedSpeakerOptions {
+  final int? stepMs;
+  final double? threshold;
+  final List<double>? maskWeights;
+  final int? maskNumFrames;
+
+  const CactusAudioEmbedSpeakerOptions({
+    this.stepMs,
+    this.threshold,
+    this.maskWeights,
+    this.maskNumFrames,
+  });
+}
+
+class CactusAudioEmbedSpeakerResult {
+  final bool success;
+  final String? error;
+  final List<double> embedding;
+  final double totalTimeMs;
+  final double ramUsageMb;
+
+  CactusAudioEmbedSpeakerResult({
+    required this.success,
+    this.error,
+    this.embedding = const [],
+    this.totalTimeMs = 0.0,
+    this.ramUsageMb = 0.0,
+  });
+}
+
+class CactusIndexGetResult {
+  final List<String> documents;
+  final List<String> metadatas;
+  final List<List<double>> embeddings;
+
+  CactusIndexGetResult({
+    this.documents = const [],
+    this.metadatas = const [],
+    this.embeddings = const [],
+  });
+}
+
+class CactusIndexQueryOptions {
+  final int? topK;
+  final double? scoreThreshold;
+
+  const CactusIndexQueryOptions({this.topK, this.scoreThreshold});
+}
+
+class CactusIndexQueryResult {
+  final List<List<int>> ids;
+  final List<List<double>> scores;
+
+  CactusIndexQueryResult({this.ids = const [], this.scores = const []});
 }
 
 class CactusException implements Exception {
@@ -106,94 +445,6 @@ class CactusException implements Exception {
     }
     return 'CactusException: $message';
   }
-}
-
-class CactusInitParams {
-  final String model;
-  final int? contextSize;
-  final String? corpusDir;
-  final bool cacheIndex;
-
-  CactusInitParams({
-    this.model = "qwen3-0.6b",
-    this.contextSize,
-    this.corpusDir,
-    this.cacheIndex = false,
-  });
-}
-
-class CactusStreamedCompletionResult {
-  final Stream<String> stream;
-  final Future<CactusCompletionResult> result;
-
-  CactusStreamedCompletionResult({required this.stream, required this.result});
-}
-
-class CactusEmbeddingResult {
-  final bool success;
-  final List<double> embeddings;
-  final int dimension;
-  final String? errorMessage;
-
-  CactusEmbeddingResult({
-    required this.success,
-    required this.embeddings,
-    required this.dimension,
-    this.errorMessage,
-  });
-}
-
-class CactusTranscriptionParams {
-  final int maxTokens;
-  final List<String> stopSequences;
-
-  CactusTranscriptionParams({
-    this.maxTokens = 2048,
-    this.stopSequences = const ["<|startoftranscript|>"],
-  });
-}
-
-class CactusTranscriptionResult {
-  final bool success;
-  final String text;
-  final double confidence;
-  final bool cloudHandoff;
-  final List<TranscriptionSegment> segments;
-  final double timeToFirstTokenMs;
-  final double totalTimeMs;
-  final double tokensPerSecond;
-  final String? errorMessage;
-
-  CactusTranscriptionResult({
-    required this.success,
-    required this.text,
-    this.confidence = 0.0,
-    this.cloudHandoff = false,
-    this.segments = const [],
-    this.timeToFirstTokenMs = 0.0,
-    this.totalTimeMs = 0.0,
-    this.tokensPerSecond = 0.0,
-    this.errorMessage,
-  });
-}
-
-class TranscriptionSegment {
-  final double start;
-  final double end;
-  final String text;
-
-  TranscriptionSegment({
-    required this.start,
-    required this.end,
-    required this.text,
-  });
-}
-
-class CactusStreamedTranscriptionResult {
-  final Stream<String> stream;
-  final Future<CactusTranscriptionResult> result;
-
-  CactusStreamedTranscriptionResult({required this.stream, required this.result});
 }
 
 class CactusProInfo {
@@ -294,152 +545,4 @@ class CactusModel {
     'is_downloaded': isDownloaded,
     if (_createdAt != null) 'created_at': _createdAt!.toIso8601String(),
   };
-}
-
-enum CompletionMode {
-  local,
-  hybrid
-}
-
-enum TranscriptionProvider {
-  whisper
-}
-
-class VoiceModel {
-  final DateTime createdAt;
-  final String slug;
-  final String downloadUrl;
-  final int sizeMb;
-  final String fileName;
-  bool isDownloaded;
-
-  VoiceModel({
-    required this.createdAt,
-    required this.slug,
-    required this.downloadUrl,
-    required this.sizeMb,
-    required this.fileName,
-    this.isDownloaded = false,
-  });
-
-  factory VoiceModel.fromJson(Map<String, dynamic> json) {
-    return VoiceModel(
-      createdAt: DateTime.parse(json['created_at'] as String),
-      slug: json['slug'] as String,
-      downloadUrl: json['download_url'] as String,
-      sizeMb: _parseIntFromDynamic(json['size_mb']),
-      fileName: json['file_name'] as String,
-      isDownloaded: false,
-    );
-  }
-
-  static int _parseIntFromDynamic(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.parse(value);
-    throw FormatException('Cannot parse $value as int');
-  }
-}
-
-class SpeechRecognitionParams {
-  final int sampleRate;
-  final int maxDuration;
-  final String? model;
-
-  SpeechRecognitionParams({
-    this.sampleRate = 16000,
-    this.maxDuration = 30000,
-    this.model,
-  });
-}
-
-class SpeechRecognitionResult {
-  final bool success;
-  final String text;
-  final double? processingTime;
-
-  SpeechRecognitionResult({
-    required this.success,
-    required this.text,
-    this.processingTime
-  });
-}
-
-class STTInitParams {
-  final String model;
-
-  STTInitParams({
-    required this.model,
-  });
-}
-
-class PrefillResult {
-  final bool success;
-  final int prefillTokens;
-  final double prefillTps;
-  final double totalTimeMs;
-  final double ramUsageMb;
-  final String? errorMessage;
-
-  PrefillResult({
-    required this.success,
-    this.prefillTokens = 0,
-    this.prefillTps = 0.0,
-    this.totalTimeMs = 0.0,
-    this.ramUsageMb = 0.0,
-    this.errorMessage,
-  });
-}
-
-class DetectLanguageResult {
-  final String language;
-  final double confidence;
-  final String languageToken;
-
-  DetectLanguageResult({
-    required this.language,
-    this.confidence = 0.0,
-    this.languageToken = '',
-  });
-}
-
-class VadResult {
-  final List<VadSegment> segments;
-  final double totalTimeMs;
-
-  VadResult({
-    this.segments = const [],
-    this.totalTimeMs = 0.0,
-  });
-}
-
-class VadSegment {
-  final int start;
-  final int end;
-
-  VadSegment({
-    required this.start,
-    required this.end,
-  });
-}
-
-class DiarizeResult {
-  final int numSpeakers;
-  final List<double> scores;
-  final double totalTimeMs;
-
-  DiarizeResult({
-    this.numSpeakers = 0,
-    this.scores = const [],
-    this.totalTimeMs = 0.0,
-  });
-}
-
-class SpeakerEmbeddingResult {
-  final List<double> embedding;
-  final double totalTimeMs;
-
-  SpeakerEmbeddingResult({
-    this.embedding = const [],
-    this.totalTimeMs = 0.0,
-  });
 }
