@@ -173,15 +173,24 @@ class DownloadService {
       final symbolicLinks = <ArchiveFile>[];
       
       // Find the root folder name in the archive
+      // Only set rootFolderName if ALL files share a common directory prefix.
+      // Archives with files at the root level (no common prefix) must not strip anything.
       String? rootFolderName;
       for (final file in archive) {
         if (file.isFile || file.isDirectory) {
           final pathParts = file.name.split('/');
-          if (pathParts.isNotEmpty && rootFolderName == null) {
-            rootFolderName = pathParts.first;
+          if (pathParts.length > 1) {
+            final candidate = pathParts.first;
+            if (rootFolderName == null) {
+              rootFolderName = candidate;
+            } else if (rootFolderName != candidate) {
+              rootFolderName = null;
+              break;
+            }
+          } else {
+            rootFolderName = null;
+            break;
           }
-          // Break after finding the first file/directory to get the root folder
-          if (rootFolderName != null) break;
         }
       }
       
