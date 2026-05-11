@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/services/config.dart';
 import 'package:cactus/src/services/context.dart';
 import 'package:cactus/src/utils/models/download.dart';
 import 'package:cactus/src/services/api/supabase.dart';
-import 'package:cactus/src/services/api/telemetry.dart';
 import 'package:cactus/src/utils/speech/speech_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -47,10 +45,6 @@ class CactusSTT {
   }
 
   Future<void> initializeModel({final CactusInitParams? params}) async {
-    if (!Telemetry.isInitialized) {
-      await Telemetry.init(CactusConfig.telemetryToken);
-    }
-
     final model = params?.model ?? _lastInitializedModel ?? defaultInitParams.model;
     final modelPath = '${(await getApplicationDocumentsDirectory()).path}/models/$model';
 
@@ -61,10 +55,6 @@ class CactusSTT {
       debugPrint('Failed to initialize model context with model at $modelPath, trying to download the model first.');
       await downloadModel(model: model);
       return initializeModel(params: params);
-    }
-
-    if (Telemetry.isInitialized) {
-      Telemetry.instance?.logInit(_handle != null, model, result.$2);
     }
 
     if (_handle == null) {
@@ -88,7 +78,6 @@ class CactusSTT {
       throw ArgumentError('Cannot provide both audioFilePath and audioStream');
     }
 
-    // File transcription mode
     if (audioFilePath != null) {
       return await _handleLock.synchronized(() async {
         final transcriptionParams = params ?? defaultTranscriptionParams;
@@ -103,11 +92,9 @@ class CactusSTT {
               audioFilePath: audioFilePath,
               params: transcriptionParams,
             );
-            _logTranscriptionTelemetry(result, model, success: result.success, message: result.errorMessage);
             return result;
           } catch (e) {
             debugPrint('Transcription failed: $e');
-            _logTranscriptionTelemetry(null, model, success: false, message: e.toString());
             rethrow;
           }
         }
@@ -173,7 +160,6 @@ class CactusSTT {
       },
     );
 
-    // Store subscription for potential cancellation
     completer.future.whenComplete(() => subscription.cancel());
 
     return completer.future;
@@ -193,7 +179,6 @@ class CactusSTT {
       throw ArgumentError('Cannot provide both audioFilePath and audioStream');
     }
 
-    // File transcription mode
     if (audioFilePath != null) {
       final transcriptionParams = params ?? defaultTranscriptionParams;
       final model = _lastInitializedModel ?? defaultInitParams.model;
@@ -207,16 +192,9 @@ class CactusSTT {
             audioFilePath: audioFilePath,
             params: transcriptionParams,
           );
-          streamedResult.result.then((result) {
-            _logTranscriptionTelemetry(result, model, success: result.success, message: result.errorMessage);
-          }).catchError((error) {
-            _logTranscriptionTelemetry(null, model, success: false, message: error.toString());
-          });
-
           return streamedResult;
         } catch (e) {
           debugPrint('Streaming transcription failed: $e');
-          _logTranscriptionTelemetry(null, model, success: false, message: e.toString());
           rethrow;
         }
       }
@@ -314,7 +292,6 @@ class CactusSTT {
       },
     );
 
-    // Clean up subscription when done
     resultCompleter.future.whenComplete(() => subscription.cancel());
 
     return CactusStreamedTranscriptionResult(
@@ -323,13 +300,11 @@ class CactusSTT {
     );
   }
 
-  // Internal helper methods
   Future<CactusTranscriptionResult> _transcribePCMInternal(
     List<int> pcmData,
     String prompt,
     CactusTranscriptionParams? params,
   ) async {
-    // Validate PCM data is not empty
     if (pcmData.isEmpty) {
       debugPrint('ERROR: Cannot transcribe empty PCM data');
       return CactusTranscriptionResult(
@@ -354,11 +329,9 @@ class CactusSTT {
             pcmData: pcmData,
             params: transcriptionParams,
           );
-          _logTranscriptionTelemetry(result, model, success: result.success, message: result.errorMessage);
           return result;
         } catch (e) {
           debugPrint('PCM transcription failed: $e');
-          _logTranscriptionTelemetry(null, model, success: false, message: e.toString());
           rethrow;
         }
       }
@@ -372,7 +345,6 @@ class CactusSTT {
     String prompt,
     CactusTranscriptionParams? params,
   ) async {
-    // Validate PCM data is not empty
     if (pcmData.isEmpty) {
       debugPrint('ERROR: Cannot transcribe empty PCM data');
       final controller = StreamController<String>();
@@ -401,16 +373,9 @@ class CactusSTT {
           pcmData: pcmData,
           params: transcriptionParams,
         );
-        streamedResult.result.then((result) {
-          _logTranscriptionTelemetry(result, model, success: result.success, message: result.errorMessage);
-        }).catchError((error) {
-          _logTranscriptionTelemetry(null, model, success: false, message: error.toString());
-        });
-
         return streamedResult;
       } catch (e) {
         debugPrint('PCM streaming transcription failed: $e');
-        _logTranscriptionTelemetry(null, model, success: false, message: e.toString());
         rethrow;
       }
     }
@@ -452,12 +417,6 @@ class CactusSTT {
 
     await initializeModel(params: CactusInitParams(model: model));
     return _handle;
-  }
-
-  void _logTranscriptionTelemetry(CactusTranscriptionResult? result, String model, {bool success = true, String? message}) {
-    if (Telemetry.isInitialized) {
-      Telemetry.instance?.logTranscription(result, model, message: message, success: success);
-    }
   }
 
   Future<bool> _isModelDownloaded(String modelName) async {

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cactus/models/tools.dart';
-import 'package:cactus/services/config.dart';
 import 'package:cactus/services/tool_filter.dart';
 import 'package:cactus/src/services/context.dart';
 import 'package:cactus/src/utils/models/download.dart';
@@ -11,7 +10,6 @@ import 'package:cactus/src/services/api/openrouter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:cactus/src/services/api/telemetry.dart';
 
 class CactusLM {
   int? _handle;
@@ -71,10 +69,6 @@ class CactusLM {
   }
 
   Future<void> initializeModel({final CactusInitParams? params}) async {
-    if (!Telemetry.isInitialized) {
-      await Telemetry.init(CactusConfig.telemetryToken);
-    }
-
     final model = params?.model?? _lastInitializedModel ?? defaultInitParams.model;
     final modelPath = '${(await getApplicationDocumentsDirectory()).path}/models/$model';
 
@@ -87,10 +81,6 @@ class CactusLM {
       return initializeModel(params: params);
     }
 
-    if(Telemetry.isInitialized) {
-      Telemetry.instance?.logInit(_handle != null, model, result.$2);
-    }
-    
     if(_handle == null) {
       throw Exception('Failed to initialize model context with model at $modelPath');
     }
@@ -127,12 +117,10 @@ class CactusLM {
         }
         try {
           final result = await CactusContext.completion(currentHandle, messages, completionParams, quantization);
-          _logCompletionTelemetry(result, model, success: result.success, message: result.success ? null : result.response);
           return result;
         } catch (e) {
           debugPrint('Local completion failed: $e');
           if (completionParams.completionMode == CompletionMode.local || (completionParams.completionMode == CompletionMode.hybrid && completionParams.cactusToken == null)) {
-            _logCompletionTelemetry(null, model, success: false, message: e.toString());
             rethrow;
           }
           debugPrint('Falling back to cloud completion');
@@ -147,10 +135,8 @@ class CactusLM {
             params: params,
           );
           openRouterService.dispose();
-          _logCompletionTelemetry(result, model, success: result.success, message: result.success ? null : result.response);
           return result;
         } catch (e) {
-          _logCompletionTelemetry(null, model, success: false, message: 'Cloud completion failed: $e');
           throw Exception('Cloud completion failed: $e');
         }
       }
@@ -188,17 +174,10 @@ class CactusLM {
       }
       try {
         final streamedResult = CactusContext.completionStream(currentHandle, messages, completionParams, quantization);
-        streamedResult.result.then((result) {
-          _logCompletionTelemetry(result, model, success: result.success, message: result.success ? null : result.response);
-        }).catchError((error) {
-          _logCompletionTelemetry(null, model, success: false, message: error.toString());
-        });
-
         return streamedResult;
       } catch (e) {
         debugPrint('Local streaming completion failed: $e');
         if (completionParams.completionMode == CompletionMode.local || (completionParams.completionMode == CompletionMode.hybrid && completionParams.cactusToken == null)) {
-          _logCompletionTelemetry(null, model, success: false, message: e.toString());
           rethrow;
         }
         debugPrint('Falling back to cloud streaming completion');
@@ -213,14 +192,8 @@ class CactusLM {
           params: completionParams,
         );
         streamedResult.result.whenComplete(() => openRouterService.dispose());
-        streamedResult.result.then((result) {
-          _logCompletionTelemetry(result, model, success: result.success, message: result.success ? null : result.response);
-        }).catchError((error) {
-          _logCompletionTelemetry(null, model, success: false, message: 'Cloud streaming completion failed: $error');
-        });
         return streamedResult;
       } catch (e) {
-        _logCompletionTelemetry(null, model, success: false, message: 'Cloud streaming completion failed: $e');
         throw Exception('Cloud streaming completion failed: $e');
       }
     }
@@ -241,13 +214,11 @@ class CactusLM {
       try {
         if(currentHandle != null) {
           final result = await CactusContext.generateEmbedding(currentHandle, text, quantization);
-          _logEmbeddingTelemetry(result, model, success: result.success, message: result.errorMessage);
           return result;
         } else {
           throw Exception('Context not initialized');
         }
       } catch (e) {
-        _logEmbeddingTelemetry(null, model, success: false, message: e.toString());
         rethrow;
       }
     });
@@ -374,18 +345,6 @@ class CactusLM {
 
     await initializeModel(params: CactusInitParams(model: model));
     return _handle;
-  }
-
-  void _logCompletionTelemetry(CactusCompletionResult? result, String model, {bool success = true, String? message}) {
-    if (Telemetry.isInitialized) {
-      Telemetry.instance?.logCompletion(result, model, message: message, success: success);
-    }
-  }
-
-  void _logEmbeddingTelemetry(CactusEmbeddingResult? result, String model, {bool success = true, String? message}) {
-    if (Telemetry.isInitialized) {
-      Telemetry.instance?.logEmbedding(result, model, message: message, success: success);
-    }
   }
 
   Future<List<CactusTool>> _filterTools(List<ChatMessage> messages, List<CactusTool> tools) async {
