@@ -27,8 +27,8 @@ void main() {
 
     test('destroy is idempotent', () async {
       final lm = CactusLM(model: _lmModel, options: const CactusModelOptions(quantization: _lmQuant));
-      await lm.destroy();
-      await lm.destroy();
+      lm.destroy();
+      lm.destroy();
     });
   });
 
@@ -42,7 +42,7 @@ void main() {
     });
 
     tearDownAll(() async {
-      await lm.destroy();
+      lm.destroy();
     });
 
     test('init is idempotent', () async {
@@ -63,7 +63,7 @@ void main() {
       final result = await lm.complete(
         messages: [CactusLMMessage(role: 'user', content: 'Say hi.')],
         options: const CactusLMCompleteOptions(maxTokens: 16),
-        onToken: (token) { tokens.add(token); return true; },
+        onToken: (token) { tokens.add(token); },
       );
       expect(result.success, isTrue);
       expect(tokens, isNotEmpty);

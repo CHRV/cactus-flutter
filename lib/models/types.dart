@@ -1,5 +1,14 @@
-typedef CactusTokenCallback = bool Function(String token);
+import 'dart:async';
+
+enum CompletionMode { local, cloud, hybrid }
+
+typedef CactusTokenCallback = void Function(String token);
 typedef CactusProgressCallback = void Function(double? progress, String statusMessage, bool isError);
+
+typedef ChatMessage = CactusLMMessage;
+typedef CactusCompletionParams = CactusLMCompleteOptions;
+typedef CactusCompletionResult = CactusLMCompleteResult;
+typedef CactusInitParams = CactusLMCompleteOptions;
 
 class CactusModelOptions {
   final String quantization;
@@ -65,6 +74,8 @@ class CactusLMCompleteOptions {
   final double? confidenceThreshold;
   final bool? includeStopSequences;
   final bool? enableThinking;
+  final CompletionMode? completionMode;
+  final String? cactusToken;
 
   const CactusLMCompleteOptions({
     this.temperature,
@@ -77,7 +88,24 @@ class CactusLMCompleteOptions {
     this.confidenceThreshold,
     this.includeStopSequences,
     this.enableThinking,
+    this.completionMode,
+    this.cactusToken,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (temperature != null) 'temperature': temperature,
+    if (topK != null) 'top_k': topK,
+    if (topP != null) 'top_p': topP,
+    'max_tokens': maxTokens,
+    'stop_sequences': stopSequences,
+    if (forceTools != null) 'force_tools': forceTools,
+    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+    if (confidenceThreshold != null) 'confidence_threshold': confidenceThreshold,
+    if (includeStopSequences != null) 'include_stop_sequences': includeStopSequences,
+    if (enableThinking != null) 'enable_thinking': enableThinking,
+    if (completionMode != null) 'completion_mode': completionMode!.name,
+    if (cactusToken != null) 'cactus_token': cactusToken,
+  };
 }
 
 class CactusLMCompleteResult {
@@ -112,12 +140,25 @@ class CactusLMCompleteResult {
     required this.totalTokens,
     this.ramUsageMb,
   });
+
+  double get tps => decodeTps;
+  double get tokensPerSecond => decodeTps;
+  List<FunctionCall>? get toolCalls => functionCalls;
+}
+
+class CactusStreamedCompletionResult {
+  final Stream<String> stream;
+  final Future<CactusLMCompleteResult> result;
+
+  CactusStreamedCompletionResult({required this.stream, required this.result});
 }
 
 class CactusLMEmbedResult {
   final List<double> embedding;
 
   CactusLMEmbedResult({required this.embedding});
+
+  List<double> get embeddings => embedding;
 }
 
 class CactusLMImageEmbedResult {
@@ -195,6 +236,19 @@ class CactusSTTTranscribeOptions {
     this.cloudHandoffThreshold,
     this.includeStopSequences,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (temperature != null) 'temperature': temperature,
+    if (topK != null) 'top_k': topK,
+    if (topP != null) 'top_p': topP,
+    'max_tokens': maxTokens,
+    'stop_sequences': stopSequences,
+    if (useVad != null) 'use_vad': useVad,
+    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+    if (confidenceThreshold != null) 'confidence_threshold': confidenceThreshold,
+    if (cloudHandoffThreshold != null) 'cloud_handoff_threshold': cloudHandoffThreshold,
+    if (includeStopSequences != null) 'include_stop_sequences': includeStopSequences,
+  };
 }
 
 class CactusSTTTranscribeResult {
@@ -225,6 +279,8 @@ class CactusSTTTranscribeResult {
     required this.totalTokens,
     this.ramUsageMb,
   });
+
+  String get text => response;
 }
 
 class CactusSTTAudioEmbedResult {
@@ -245,6 +301,13 @@ class CactusSTTStreamTranscribeStartOptions {
     this.telemetryEnabled,
     this.language,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (confirmationThreshold != null) 'confirmation_threshold': confirmationThreshold,
+    if (minChunkSize != null) 'min_chunk_size': minChunkSize,
+    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+    if (language != null) 'language': language,
+  };
 }
 
 class CactusSTTStreamTranscribeProcessResult {
@@ -299,6 +362,10 @@ class CactusSTTDetectLanguageOptions {
   final bool? useVad;
 
   const CactusSTTDetectLanguageOptions({this.useVad});
+
+  Map<String, dynamic> toJson() => {
+    if (useVad != null) 'use_vad': useVad,
+  };
 }
 
 class CactusAudioVADOptions {
@@ -325,6 +392,19 @@ class CactusAudioVADOptions {
     this.minSilenceAtMaxSpeech,
     this.useMaxPossSilAtMaxSpeech,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (threshold != null) 'threshold': threshold,
+    if (negThreshold != null) 'neg_threshold': negThreshold,
+    if (minSpeechDurationMs != null) 'min_speech_duration_ms': minSpeechDurationMs,
+    if (maxSpeechDurationS != null) 'max_speech_duration_s': maxSpeechDurationS,
+    if (minSilenceDurationMs != null) 'min_silence_duration_ms': minSilenceDurationMs,
+    if (speechPadMs != null) 'speech_pad_ms': speechPadMs,
+    if (windowSizeSamples != null) 'window_size_samples': windowSizeSamples,
+    if (samplingRate != null) 'sampling_rate': samplingRate,
+    if (minSilenceAtMaxSpeech != null) 'min_silence_at_max_speech': minSilenceAtMaxSpeech,
+    if (useMaxPossSilAtMaxSpeech != null) 'use_max_poss_sil_at_max_speech': useMaxPossSilAtMaxSpeech,
+  };
 }
 
 class CactusAudioVADSegment {
@@ -356,6 +436,14 @@ class CactusAudioDiarizeOptions {
     this.minSpeakers,
     this.maxSpeakers,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (stepMs != null) 'step_ms': stepMs,
+    if (threshold != null) 'threshold': threshold,
+    if (numSpeakers != null) 'num_speakers': numSpeakers,
+    if (minSpeakers != null) 'min_speakers': minSpeakers,
+    if (maxSpeakers != null) 'max_speakers': maxSpeakers,
+  };
 }
 
 class CactusAudioDiarizeResult {
@@ -388,6 +476,13 @@ class CactusAudioEmbedSpeakerOptions {
     this.maskWeights,
     this.maskNumFrames,
   });
+
+  Map<String, dynamic> toJson() => {
+    if (stepMs != null) 'step_ms': stepMs,
+    if (threshold != null) 'threshold': threshold,
+    if (maskWeights != null) 'mask_weights': maskWeights,
+    if (maskNumFrames != null) 'mask_num_frames': maskNumFrames,
+  };
 }
 
 class CactusAudioEmbedSpeakerResult {
@@ -423,6 +518,11 @@ class CactusIndexQueryOptions {
   final double? scoreThreshold;
 
   const CactusIndexQueryOptions({this.topK, this.scoreThreshold});
+
+  Map<String, dynamic> toJson() => {
+    if (topK != null) 'top_k': topK,
+    if (scoreThreshold != null) 'score_threshold': scoreThreshold,
+  };
 }
 
 class CactusIndexQueryResult {
@@ -545,4 +645,38 @@ class CactusModel {
     'is_downloaded': isDownloaded,
     if (_createdAt != null) 'created_at': _createdAt!.toIso8601String(),
   };
+}
+
+class ChunkSearchResult {
+  final String text;
+  final double score;
+  final Map<String, dynamic>? metadata;
+
+  ChunkSearchResult({required this.text, required this.score, this.metadata});
+
+  String get chunk => text;
+}
+
+class DatabaseStats {
+  final int count;
+  final int dimension;
+
+  DatabaseStats({required this.count, required this.dimension});
+
+  int get totalDocuments => count;
+}
+
+typedef VoiceModel = CactusModel;
+
+class CactusTranscriptionResult {
+  final String text;
+  final bool isFinal;
+
+  CactusTranscriptionResult({required this.text, required this.isFinal});
+
+  // For compatibility with stream-based transcribeStream
+  Stream<CactusTranscriptionResult> get stream => Stream.value(this);
+  Future<CactusTranscriptionResult> get result => Future.value(this);
+  double get timeToFirstTokenMs => 0.0;
+  double get totalTimeMs => 0.0;
 }

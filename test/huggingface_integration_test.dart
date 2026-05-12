@@ -1,7 +1,6 @@
 @Tags(['integration'])
 library integration_test;
 
-import 'dart:io';
 import 'package:cactus/cactus.dart';
 import 'package:flutter_test/flutter_test.dart';
 

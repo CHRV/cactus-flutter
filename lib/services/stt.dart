@@ -1,19 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:ffi';
 
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/services/context.dart';
 import 'package:cactus/src/services/api/huggingface.dart';
 import 'package:cactus/src/utils/models/download.dart';
 import 'package:cactus/services/config.dart';
-import 'package:cactus/src/services/bindings.dart' as bindings;
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 class CactusSTT {
-  int? _handle;
+  CactusContext? _context;
   int? _streamHandle;
   bool _isInitialized = false;
   bool _isDownloading = false;
@@ -28,7 +24,6 @@ class CactusSTT {
       '<|startoftranscript|><|en|><|transcribe|><|notimestamps|>';
   static const _defaultTranscribeOptions =
       CactusSTTTranscribeOptions(maxTokens: 384);
-  static const int _defaultEmbedBufferSize = 4096;
 
   final _handleLock = _AsyncLock();
 
@@ -95,10 +90,11 @@ class CactusSTT {
     final cacheLocation = (await getApplicationDocumentsDirectory()).path;
     CactusConfig.setTelemetryEnvironment(cacheLocation);
 
-    final result = await CactusContext.initContext(modelPath, 512);
-    _handle = result.$1;
+    _context = await CactusContext.initContext(
+      modelPath: modelPath,
+    );
 
-    if (_handle == null &&
+    if (_context == null &&
         !await DownloadService.modelExists(getModelName())) {
       debugPrint(
           'Failed to initialize model at $modelPath, downloading...');
@@ -106,11 +102,31 @@ class CactusSTT {
       return init();
     }
 
-    if (_handle == null) {
+    if (_context == null) {
       throw Exception('Failed to initialize model at $modelPath');
     }
 
     _isInitialized = true;
+  }
+
+  Future<void> initializeModel({String? model, CactusInitParams? params}) => init();
+
+  Future<void> downloadModel({
+    required String model,
+    String? quantization,
+    bool pro = false,
+    CactusProgressCallback? onProgress,
+  }) => download(onProgress: onProgress);
+
+  void unload() {
+    _context?.destroy();
+    _context = null;
+    _isInitialized = false;
+  }
+
+  Future<List<VoiceModel>> getVoiceModels() async {
+    final registry = await HuggingFace.getRegistry();
+    return registry.values.where((m) => m.capabilities.contains('transcription')).toList();
   }
 
   Future<CactusSTTTranscribeResult> transcribe({
@@ -122,8 +138,7 @@ class CactusSTT {
     await init();
 
     return _handleLock.synchronized(() async {
-      final currentHandle = _handle;
-      if (currentHandle == null) {
+      if (_context == null) {
         throw Exception('Model not initialized');
       }
 
@@ -141,14 +156,30 @@ class CactusSTT {
             'audio must be a String (filepath) or List<int> (PCM data)');
       }
 
-      return CactusContext.transcribe(
-        currentHandle,
-        effectivePrompt,
-        audioFilePath: audioFilePath,
+      return _context!.transcribe(
+        audioPath: audioFilePath,
+        prompt: effectivePrompt,
+        options: effectiveOptions,
+        onToken: onToken,
         pcmData: pcmData,
-        params: effectiveOptions,
       );
     });
+  }
+
+  Future<CactusTranscriptionResult> transcribeStream({
+    required List<int> audio,
+    List<int>? audioStream,
+    String? audioFilePath,
+    CactusTokenCallback? onToken,
+  }) async {
+    // Actually, transcribeStream in example/lib/pages/stt.dart is called with audioStream OR audioFilePath.
+    // I'll make it smarter.
+    if (audioFilePath != null) {
+      final result = await transcribe(audio: audioFilePath, onToken: onToken);
+      return CactusTranscriptionResult(text: result.text, isFinal: true);
+    }
+    final result = await transcribe(audio: audioStream ?? audio, onToken: onToken);
+    return CactusTranscriptionResult(text: result.text, isFinal: true);
   }
 
   Future<void> streamTranscribeStart({
@@ -156,30 +187,11 @@ class CactusSTT {
   }) async {
     await init();
 
-    final currentHandle = _handle;
-    if (currentHandle == null) {
+    if (_context == null) {
       throw Exception('Model not initialized');
     }
 
-    final optionsMap = <String, dynamic>{};
-    if (options?.confirmationThreshold != null) {
-      optionsMap['confirmation_threshold'] = options!.confirmationThreshold;
-    }
-    if (options?.minChunkSize != null) {
-      optionsMap['min_chunk_size'] = options!.minChunkSize;
-    }
-    if (options?.telemetryEnabled != null) {
-      optionsMap['telemetry_enabled'] = options!.telemetryEnabled;
-    }
-    if (options?.language != null) {
-      optionsMap['language'] = options!.language;
-    }
-    final optionsJson = jsonEncode(optionsMap);
-
-    _streamHandle = await compute(
-        _streamTranscribeStartInIsolate,
-        {'handle': currentHandle, 'optionsJson': optionsJson});
-
+    _streamHandle = _context!.streamTranscribeStart(options: options);
     _isStreamTranscribing = true;
   }
 
@@ -194,7 +206,6 @@ class CactusSTT {
     return compute(_streamTranscribeProcessInIsolate, {
       'streamHandle': _streamHandle!,
       'pcmData': audio is Uint8List ? audio : Uint8List.fromList(audio),
-      'bufferSize': 4096,
     });
   }
 
@@ -207,7 +218,6 @@ class CactusSTT {
     try {
       return await compute(_streamTranscribeStopInIsolate, {
         'streamHandle': _streamHandle!,
-        'bufferSize': 4096,
       });
     } finally {
       _isStreamTranscribing = false;
@@ -221,8 +231,7 @@ class CactusSTT {
   }) async {
     await init();
 
-    final currentHandle = _handle;
-    if (currentHandle == null) {
+    if (_context == null) {
       throw Exception('Model not initialized');
     }
 
@@ -237,9 +246,8 @@ class CactusSTT {
           'audio must be a String (filepath) or List<int> (PCM data)');
     }
 
-    return CactusContext.detectLanguage(
-      currentHandle,
-      audioFilePath: audioFilePath,
+    return _context!.detectLanguage(
+      audioPath: audioFilePath,
       pcmData: pcmData,
     );
   }
@@ -249,35 +257,22 @@ class CactusSTT {
   }) async {
     await init();
 
-    final currentHandle = _handle;
-    if (currentHandle == null) {
+    if (_context == null) {
       throw Exception('Model not initialized');
     }
 
     return compute(_audioEmbedInIsolate, {
-      'handle': currentHandle,
+      'handle': _context!.handle.address,
       'audioPath': audioPath,
-      'bufferSize': _defaultEmbedBufferSize,
     });
   }
 
   Future<void> stop() async {
-    final currentHandle = _handle;
-    if (currentHandle != null) {
-      try {
-        bindings.cactusStop(Pointer.fromAddress(currentHandle));
-      } catch (e) {
-        debugPrint('Error stopping model: $e');
-      }
-    }
+    _context?.stop();
   }
 
   Future<void> reset() async {
-    await stop();
-    final currentHandle = _handle;
-    if (currentHandle != null) {
-      CactusContext.resetContext(currentHandle);
-    }
+    _context?.reset();
   }
 
   Future<void> destroy() async {
@@ -291,11 +286,8 @@ class CactusSTT {
             'Error stopping stream transcription during destroy: $e');
       }
     }
-    final currentHandle = _handle;
-    if (currentHandle != null) {
-      CactusContext.freeContext(currentHandle);
-    }
-    _handle = null;
+    _context?.destroy();
+    _context = null;
     _streamHandle = null;
     _isInitialized = false;
   }
@@ -316,162 +308,27 @@ class CactusSTT {
   bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
 }
 
-int _streamTranscribeStartInIsolate(Map<String, dynamic> params) {
-  final handle = params['handle'] as int;
-  final optionsJson = params['optionsJson'] as String;
-
-  final optionsJsonC = optionsJson.toNativeUtf8(allocator: calloc);
-  try {
-    final stream = bindings.cactusStreamTranscribeStart(
-      Pointer.fromAddress(handle),
-      optionsJsonC,
-    );
-    return stream.address;
-  } finally {
-    calloc.free(optionsJsonC);
-  }
-}
-
 CactusSTTStreamTranscribeProcessResult _streamTranscribeProcessInIsolate(
     Map<String, dynamic> params) {
-  final streamHandle = params['streamHandle'] as int;
-  final pcmData = params['pcmData'] as Uint8List;
-  final bufferSize = params['bufferSize'] as int;
-
-  final pcmBufferPtr = calloc<Uint8>(pcmData.length);
-  final responseBuffer = calloc<Uint8>(bufferSize);
-
-  try {
-    final nativeList = pcmBufferPtr.asTypedList(pcmData.length);
-    nativeList.setAll(0, pcmData);
-
-    final result = bindings.cactusStreamTranscribeProcess(
-      Pointer.fromAddress(streamHandle),
-      pcmBufferPtr,
-      pcmData.length,
-      responseBuffer.cast<Utf8>(),
-      bufferSize,
-    );
-
-    if (result > 0) {
-      final responseText = utf8
-          .decode(responseBuffer.asTypedList(result), allowMalformed: true)
-          .trim();
-      try {
-        final json = jsonDecode(responseText) as Map<String, dynamic>;
-        return CactusSTTStreamTranscribeProcessResult(
-          success: json['success'] as bool? ?? true,
-          confirmed: json['confirmed'] as String? ?? '',
-          pending: json['pending'] as String? ?? '',
-          bufferDurationMs:
-              (json['buffer_duration_ms'] as num?)?.toDouble(),
-          confidence: (json['confidence'] as num?)?.toDouble(),
-          cloudHandoff: json['cloud_handoff'] as bool?,
-          timeToFirstTokenMs:
-              (json['time_to_first_token_ms'] as num?)?.toDouble() ?? 0.0,
-          totalTimeMs:
-              (json['total_time_ms'] as num?)?.toDouble() ?? 0.0,
-          prefillTokens: json['prefill_tokens'] as int?,
-          prefillTps: (json['prefill_tps'] as num?)?.toDouble(),
-          decodeTokens: json['decode_tokens'] as int?,
-          decodeTps: (json['decode_tps'] as num?)?.toDouble(),
-          totalTokens: json['total_tokens'] as int?,
-          ramUsageMb: (json['ram_usage_mb'] as num?)?.toDouble(),
-        );
-      } catch (e) {
-        return CactusSTTStreamTranscribeProcessResult(
-          success: false,
-          confirmed: '',
-          pending: '',
-        );
-      }
-    } else {
-      return CactusSTTStreamTranscribeProcessResult(
-        success: false,
-        confirmed: '',
-        pending: '',
-      );
-    }
-  } finally {
-    calloc.free(pcmBufferPtr);
-    calloc.free(responseBuffer);
-  }
+  return CactusContext.streamTranscribeProcessWithHandle(
+    params['streamHandle'] as int,
+    params['pcmData'] as List<int>,
+  );
 }
 
 CactusSTTStreamTranscribeStopResult _streamTranscribeStopInIsolate(
     Map<String, dynamic> params) {
-  final streamHandle = params['streamHandle'] as int;
-  final bufferSize = params['bufferSize'] as int;
-
-  final responseBuffer = calloc<Uint8>(bufferSize);
-
-  try {
-    final result = bindings.cactusStreamTranscribeStop(
-      Pointer.fromAddress(streamHandle),
-      responseBuffer.cast<Utf8>(),
-      bufferSize,
-    );
-
-    if (result > 0) {
-      final responseText = utf8
-          .decode(responseBuffer.asTypedList(result), allowMalformed: true)
-          .trim();
-      try {
-        final json = jsonDecode(responseText) as Map<String, dynamic>;
-        return CactusSTTStreamTranscribeStopResult(
-          success: json['success'] as bool? ?? true,
-          confirmed: json['confirmed'] as String? ?? '',
-        );
-      } catch (e) {
-        return CactusSTTStreamTranscribeStopResult(
-            success: false, confirmed: '');
-      }
-    } else {
-      return CactusSTTStreamTranscribeStopResult(
-          success: false, confirmed: '');
-    }
-  } finally {
-    calloc.free(responseBuffer);
-  }
+  return CactusContext.streamTranscribeStopWithHandle(
+    params['streamHandle'] as int,
+  );
 }
 
 CactusSTTAudioEmbedResult _audioEmbedInIsolate(
     Map<String, dynamic> params) {
-  final handle = params['handle'] as int;
-  final audioPath = params['audioPath'] as String;
-  final bufferSize = params['bufferSize'] as int;
-
-  final audioPathC = audioPath.toNativeUtf8(allocator: calloc);
-  final embeddingDimPtr = calloc<IntPtr>();
-  final embeddingsBuffer = calloc<Float>(bufferSize);
-
-  try {
-    final result = bindings.cactusAudioEmbed(
-      Pointer.fromAddress(handle),
-      audioPathC,
-      embeddingsBuffer,
-      bufferSize * 4,
-      embeddingDimPtr,
-    );
-
-    if (result > 0) {
-      final actualDim = embeddingDimPtr.value;
-      if (actualDim > bufferSize) {
-        return CactusSTTAudioEmbedResult(embedding: []);
-      }
-      final embedding = <double>[];
-      for (int i = 0; i < actualDim; i++) {
-        embedding.add(embeddingsBuffer[i]);
-      }
-      return CactusSTTAudioEmbedResult(embedding: embedding);
-    } else {
-      return CactusSTTAudioEmbedResult(embedding: []);
-    }
-  } finally {
-    calloc.free(audioPathC);
-    calloc.free(embeddingDimPtr);
-    calloc.free(embeddingsBuffer);
-  }
+  return CactusContext.audioEmbedWithHandle(
+    params['handle'] as int,
+    params['audioPath'] as String,
+  );
 }
 
 class _AsyncLock {

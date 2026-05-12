@@ -8,7 +8,7 @@ import 'package:cactus/services/config.dart';
 import 'package:path_provider/path_provider.dart';
 
 class CactusAudio {
-  int? _handle;
+  CactusContext? _context;
   bool _isInitialized = false;
   bool _isDownloading = false;
 
@@ -91,13 +91,9 @@ class CactusAudio {
     final cacheLocation = (await getApplicationDocumentsDirectory()).path;
     CactusConfig.setTelemetryEnvironment(cacheLocation);
 
-    final result = await CactusContext.initContext(modelPath, null);
-    _handle = result.$1;
-
-    if (_handle == null) {
-      throw CactusException(
-          'Failed to initialize model at $modelPath: ${result.$2}');
-    }
+    _context = await CactusContext.initContext(
+      modelPath: modelPath,
+    );
 
     _isInitialized = true;
   }
@@ -107,8 +103,7 @@ class CactusAudio {
     CactusAudioVADOptions? options,
   }) async {
     await init();
-    final currentHandle = _handle;
-    if (currentHandle == null) throw CactusException('Model not initialized');
+    if (_context == null) throw CactusException('Model not initialized');
 
     String? audioFilePath;
     List<int>? pcmData;
@@ -121,10 +116,10 @@ class CactusAudio {
           'audio must be a String (filepath) or List<int> (PCM data)');
     }
 
-    return CactusContext.vad(
-      currentHandle,
-      audioFilePath: audioFilePath,
+    return _context!.vad(
+      audioPath: audioFilePath,
       pcmData: pcmData,
+      options: options,
     );
   }
 
@@ -133,8 +128,7 @@ class CactusAudio {
     CactusAudioDiarizeOptions? options,
   }) async {
     await init();
-    final currentHandle = _handle;
-    if (currentHandle == null) throw CactusException('Model not initialized');
+    if (_context == null) throw CactusException('Model not initialized');
 
     String? audioFilePath;
     List<int>? pcmData;
@@ -147,10 +141,10 @@ class CactusAudio {
           'audio must be a String (filepath) or List<int> (PCM data)');
     }
 
-    return CactusContext.diarize(
-      currentHandle,
-      audioFilePath: audioFilePath,
+    return _context!.diarize(
+      audioPath: audioFilePath,
       pcmData: pcmData,
+      options: options,
     );
   }
 
@@ -159,8 +153,7 @@ class CactusAudio {
     CactusAudioEmbedSpeakerOptions? options,
   }) async {
     await init();
-    final currentHandle = _handle;
-    if (currentHandle == null) throw CactusException('Model not initialized');
+    if (_context == null) throw CactusException('Model not initialized');
 
     String? audioFilePath;
     List<int>? pcmData;
@@ -173,20 +166,17 @@ class CactusAudio {
           'audio must be a String (filepath) or List<int> (PCM data)');
     }
 
-    return CactusContext.embedSpeaker(
-      currentHandle,
-      audioFilePath: audioFilePath,
+    return _context!.embedSpeaker(
+      audioPath: audioFilePath,
       pcmData: pcmData,
+      options: options,
     );
   }
 
   Future<void> destroy() async {
     if (!_isInitialized) return;
-    final currentHandle = _handle;
-    if (currentHandle != null) {
-      CactusContext.freeContext(currentHandle);
-    }
-    _handle = null;
+    _context?.destroy();
+    _context = null;
     _isInitialized = false;
   }
 

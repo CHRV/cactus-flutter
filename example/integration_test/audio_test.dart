@@ -1,7 +1,7 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _timeout = Timeout(Duration(minutes: 3));
+const _timeout = Timeout(Duration(minutes: 5));
 
 void main() {
   group('CactusAudio unit', () {
@@ -26,13 +26,16 @@ void main() {
 
     setUpAll(() async {
       audio = CactusAudio(options: const CactusModelOptions(quantization: 'int4'));
-      await audio.download();
-      await audio.init();
     });
 
     tearDownAll(() async {
       await audio.destroy();
     });
+
+    test('download and init', () async {
+      await audio.download();
+      await audio.init();
+    }, timeout: Timeout(Duration(minutes: 10)));
 
     test('init is idempotent', () async {
       await audio.init();

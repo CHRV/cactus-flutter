@@ -1,5 +1,4 @@
 import 'package:cactus/src/services/bindings.dart' as bindings;
-import 'package:ffi/ffi.dart';
 
 class CactusConfig {
 
@@ -12,25 +11,11 @@ class CactusConfig {
   }
 
   static void setTelemetryEnvironment(String cacheLocation) {
-    final frameworkC = 'flutter'.toNativeUtf8(allocator: calloc);
-    final cacheLocationC = cacheLocation.toNativeUtf8(allocator: calloc);
-    final versionC = '1.14.0'.toNativeUtf8(allocator: calloc);
-    try {
-      bindings.cactusSetTelemetryEnvironment(frameworkC, cacheLocationC, versionC);
-    } finally {
-      calloc.free(frameworkC);
-      calloc.free(cacheLocationC);
-      calloc.free(versionC);
-    }
+    bindings.cactusSetTelemetryEnvironment(cacheLocation);
   }
 
   static void setAppId(String appId) {
-    final appIdC = appId.toNativeUtf8(allocator: calloc);
-    try {
-      bindings.cactusSetAppId(appIdC);
-    } finally {
-      calloc.free(appIdC);
-    }
+    bindings.cactusSetAppId(appId);
   }
 
   static void telemetryFlush() {
