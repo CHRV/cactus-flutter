@@ -36,7 +36,7 @@ CactusLM get lm => _lm!;
     super.dispose();
   }
 
-  Future<void> downloadModel() async {
+  Future<void> download() async {
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
@@ -47,7 +47,7 @@ CactusLM get lm => _lm!;
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.downloadModel(
+      await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -176,7 +176,7 @@ CactusLM get lm => _lm!;
                 ),
                 const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: isDownloading ? null : downloadModel,
+              onPressed: isDownloading ? null : download,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,

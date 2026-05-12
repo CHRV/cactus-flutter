@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/services/context.dart';
@@ -17,6 +18,8 @@ class CactusAudio {
 
   static const String _defaultModel = 'silero-vad';
   static const _defaultQuantization = 'int8';
+
+  final _handleLock = _AsyncLock();
 
   CactusAudio({String? model, CactusModelOptions? options})
       : model = model ?? _defaultModel,
@@ -105,22 +108,25 @@ class CactusAudio {
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
-    String? audioFilePath;
-    List<int>? pcmData;
-    if (audio is String) {
-      audioFilePath = audio;
-    } else if (audio is List<int>) {
-      pcmData = audio;
-    } else {
-      throw ArgumentError(
-          'audio must be a String (filepath) or List<int> (PCM data)');
-    }
+    return _handleLock.synchronized(() async {
+      String? audioFilePath;
+      Uint8List? pcmData;
+      if (audio is String) {
+        audioFilePath = audio;
+      } else if (audio is List<int>) {
+        pcmData = Uint8List.fromList(audio);
+      } else {
+        throw ArgumentError(
+            'audio must be a String (filepath) or List<int> (PCM data)');
+      }
 
-    return _context!.vad(
-      audioPath: audioFilePath,
-      pcmData: pcmData,
-      options: options,
-    );
+      return CactusContext.vadAt(
+        handleAddress: _context!.handle.address,
+        audioPath: audioFilePath,
+        pcmData: pcmData,
+        options: options,
+      );
+    });
   }
 
   Future<CactusAudioDiarizeResult> diarize({
@@ -130,22 +136,25 @@ class CactusAudio {
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
-    String? audioFilePath;
-    List<int>? pcmData;
-    if (audio is String) {
-      audioFilePath = audio;
-    } else if (audio is List<int>) {
-      pcmData = audio;
-    } else {
-      throw ArgumentError(
-          'audio must be a String (filepath) or List<int> (PCM data)');
-    }
+    return _handleLock.synchronized(() async {
+      String? audioFilePath;
+      Uint8List? pcmData;
+      if (audio is String) {
+        audioFilePath = audio;
+      } else if (audio is List<int>) {
+        pcmData = Uint8List.fromList(audio);
+      } else {
+        throw ArgumentError(
+            'audio must be a String (filepath) or List<int> (PCM data)');
+      }
 
-    return _context!.diarize(
-      audioPath: audioFilePath,
-      pcmData: pcmData,
-      options: options,
-    );
+      return CactusContext.diarizeAt(
+        handleAddress: _context!.handle.address,
+        audioPath: audioFilePath,
+        pcmData: pcmData,
+        options: options,
+      );
+    });
   }
 
   Future<CactusAudioEmbedSpeakerResult> embedSpeaker({
@@ -155,22 +164,25 @@ class CactusAudio {
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
-    String? audioFilePath;
-    List<int>? pcmData;
-    if (audio is String) {
-      audioFilePath = audio;
-    } else if (audio is List<int>) {
-      pcmData = audio;
-    } else {
-      throw ArgumentError(
-          'audio must be a String (filepath) or List<int> (PCM data)');
-    }
+    return _handleLock.synchronized(() async {
+      String? audioFilePath;
+      Uint8List? pcmData;
+      if (audio is String) {
+        audioFilePath = audio;
+      } else if (audio is List<int>) {
+        pcmData = Uint8List.fromList(audio);
+      } else {
+        throw ArgumentError(
+            'audio must be a String (filepath) or List<int> (PCM data)');
+      }
 
-    return _context!.embedSpeaker(
-      audioPath: audioFilePath,
-      pcmData: pcmData,
-      options: options,
-    );
+      return CactusContext.embedSpeakerAt(
+        handleAddress: _context!.handle.address,
+        audioPath: audioFilePath,
+        pcmData: pcmData,
+        options: options,
+      );
+    });
   }
 
   Future<void> destroy() async {
@@ -198,4 +210,24 @@ class CactusAudio {
       '$model-${options.quantization}${options.pro ? '-pro' : ''}';
 
   bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
+}
+
+class _AsyncLock {
+  Completer<void>? _completer;
+
+  Future<T> synchronized<T>(Future<T> Function() fn) async {
+    while (_completer != null) {
+      await _completer!.future;
+    }
+
+    _completer = Completer<void>();
+
+    try {
+      return await fn();
+    } finally {
+      final completer = _completer;
+      _completer = null;
+      completer?.complete();
+    }
+  }
 }

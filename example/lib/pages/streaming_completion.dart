@@ -37,7 +37,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     super.dispose();
   }
 
-  Future<void> downloadModel() async {
+  Future<void> download() async {
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
@@ -48,7 +48,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.downloadModel(
+      await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -199,7 +199,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
                 const SizedBox(height: 10),
                 // Buttons section
                 ElevatedButton(
-              onPressed: isDownloading ? null : downloadModel,
+              onPressed: isDownloading ? null : download,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,

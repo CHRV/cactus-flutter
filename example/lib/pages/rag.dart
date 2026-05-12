@@ -47,7 +47,7 @@ class _RAGPageState extends State<RAGPage> {
     await File('${_corpusDir!}/doc3.txt').writeAsString('The capital of France is Paris.');
   }
 
-  Future<void> downloadModel() async {
+  Future<void> download() async {
     if (selectedModel == null) return;
     setState(() {
       isDownloading = true;
@@ -62,7 +62,7 @@ class _RAGPageState extends State<RAGPage> {
         corpusDir: _corpusDir,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.downloadModel(
+      await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -215,7 +215,7 @@ class _RAGPageState extends State<RAGPage> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: isDownloading ? null : downloadModel,
+                    onPressed: isDownloading ? null : download,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

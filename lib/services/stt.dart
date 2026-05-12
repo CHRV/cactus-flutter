@@ -40,21 +40,22 @@ class CactusSTT {
     return '${dir.path}/models/${getModelName()}';
   }
 
-  Future<void> download({CactusProgressCallback? onProgress}) async {
+  Future<void> download({String? model, CactusProgressCallback? onProgress}) async {
     if (_isDownloading) return;
     _isDownloading = true;
     try {
-      if (await DownloadService.modelExists(getModelName())) return;
+      final effectiveModel = model ?? this.model;
+      if (await DownloadService.modelExists('$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}')) return;
 
-      final currentModel = await HuggingFace.getModel(model);
+      final currentModel = await HuggingFace.getModel(effectiveModel);
       if (currentModel == null) {
-        throw Exception('Failed to get model $model');
+        throw Exception('Failed to get model $effectiveModel');
       }
 
       final quantInfo = currentModel.quantization[options.quantization];
       if (quantInfo == null) {
         throw Exception(
-            'Model $model does not have ${options.quantization} quantization');
+            'Model $effectiveModel does not have ${options.quantization} quantization');
       }
 
       String downloadUrl;
@@ -69,14 +70,14 @@ class CactusSTT {
       final task = DownloadTask(
         url: downloadUrl,
         filename: actualFilename,
-        folder: getModelName(),
+        folder: '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}',
       );
 
       final success =
           await DownloadService.downloadAndExtractModels([task], onProgress);
       if (!success) {
         throw Exception(
-            'Failed to download and extract model $model from $downloadUrl');
+            'Failed to download and extract model $effectiveModel from $downloadUrl');
       }
     } finally {
       _isDownloading = false;
@@ -129,6 +130,8 @@ class CactusSTT {
     return registry.values.where((m) => m.capabilities.contains('transcription')).toList();
   }
 
+  /// Transcribe via isolated FFI call. Uses Isolate.spawn because
+  /// cactusTranscribe streams tokens through a Dart callback.
   Future<CactusSTTTranscribeResult> transcribe({
     required dynamic audio,
     String? prompt,
@@ -156,7 +159,8 @@ class CactusSTT {
             'audio must be a String (filepath) or List<int> (PCM data)');
       }
 
-      return _context!.transcribe(
+      return CactusContext.transcribeAt(
+        handleAddress: _context!.handle.address,
         audioPath: audioFilePath,
         prompt: effectivePrompt,
         options: effectiveOptions,
@@ -172,8 +176,6 @@ class CactusSTT {
     String? audioFilePath,
     CactusTokenCallback? onToken,
   }) async {
-    // Actually, transcribeStream in example/lib/pages/stt.dart is called with audioStream OR audioFilePath.
-    // I'll make it smarter.
     if (audioFilePath != null) {
       final result = await transcribe(audio: audioFilePath, onToken: onToken);
       return CactusTranscriptionResult(text: result.text, isFinal: true);
@@ -225,6 +227,7 @@ class CactusSTT {
     }
   }
 
+  /// Detect language via isolated FFI call.
   Future<CactusSTTDetectLanguageResult> detectLanguage({
     required dynamic audio,
     CactusSTTDetectLanguageOptions? options,
@@ -246,12 +249,15 @@ class CactusSTT {
           'audio must be a String (filepath) or List<int> (PCM data)');
     }
 
-    return _context!.detectLanguage(
+    return CactusContext.detectLanguageAt(
+      handleAddress: _context!.handle.address,
       audioPath: audioFilePath,
       pcmData: pcmData,
+      options: options,
     );
   }
 
+  /// Audio embed via isolated FFI call.
   Future<CactusSTTAudioEmbedResult> audioEmbed({
     required String audioPath,
   }) async {

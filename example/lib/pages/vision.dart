@@ -78,7 +78,7 @@ class _VisionPageState extends State<VisionPage> {
     }
   }
 
-  Future<void> downloadModel() async {
+  Future<void> download() async {
     if (selectedModel == null) {
       setState(() {
         outputText = 'Please select a vision model first.';
@@ -96,7 +96,7 @@ class _VisionPageState extends State<VisionPage> {
           model: selectedModel!.slug,
           options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
         );
-        await lm.downloadModel(
+        await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -270,7 +270,7 @@ class _VisionPageState extends State<VisionPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: isDownloading || selectedModel == null ? null : downloadModel,
+                        onPressed: isDownloading || selectedModel == null ? null : download,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,

@@ -104,7 +104,7 @@ class _STTPageState extends State<STTPage> {
 
     try {
       // Download the model
-      await _stt.downloadModel(
+      await _stt.download(
         model: _selectedModel,
         onProgress: (progress, message, isError) {
           setState(() {

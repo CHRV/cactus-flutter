@@ -34,48 +34,31 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
     super.dispose();
   }
 
-  Future<void> downloadModel() async {
-    setState(() {
-      isDownloading = true;
-      outputText = 'Downloading model...';
-    });
-
-    try {
-      _lm ??= CactusLM(
-          model: selectedModel!.slug,
-          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
-        );
-      await lm.downloadModel(
-        model: selectedModel!.slug,
-        quantization: selectedQuantization,
-        pro: usePro,
-        onProgress: (progress, status, isError) {
-          setState(() {
-            if (isError) {
-              outputText = 'Error: $status';
-            } else {
-              outputText = status;
-              if (progress != null) {
-                outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
-              }
-            }
-          });
-        },
-      );
-      setState(() {
-        isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
-      });
-    } catch (e) {
-      setState(() {
-        outputText = 'Error downloading model: $e';
-      });
-    } finally {
-      setState(() {
-        isDownloading = false;
-      });
-    }
-  }
+Future<void> download() async {
+     if (isDownloading) return;
+     setState(() {
+       isDownloading = true;
+     });
+     try {
+       await lm.download(
+         model: selectedModel!.slug,
+         quantization: selectedQuantization,
+         pro: usePro,
+       );
+       setState(() {
+         isModelDownloaded = true;
+         outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+       });
+     } catch (e) {
+       setState(() {
+         outputText = 'Error downloading model: $e';
+       });
+     } finally {
+       setState(() {
+         isDownloading = false;
+       });
+     }
+   }
 
   Future<void> initializeModel() async {
     setState(() {
@@ -191,7 +174,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: isDownloading ? null : downloadModel,
+                    onPressed: isDownloading ? null : download,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/services/context.dart';
@@ -60,8 +61,8 @@ class CactusLM {
     final effectiveQuant = quantization ?? options.quantization;
     final effectivePro = pro ?? options.pro;
 
-    final modelName = effectivePro 
-      ? '$effectiveModel-$effectiveQuant-pro' 
+    final modelName = effectivePro
+      ? '$effectiveModel-$effectiveQuant-pro'
       : '$effectiveModel-$effectiveQuant';
 
     if (_isModelPath(effectiveModel)) return;
@@ -143,13 +144,8 @@ class CactusLM {
 
   void unload() => destroy();
 
-  Future<void> downloadModel({
-    required String model,
-    String? quantization,
-    bool pro = false,
-    CactusProgressCallback? onProgress,
-  }) => download(model: model, quantization: quantization, pro: pro, onProgress: onProgress);
-
+  /// Complete via isolated FFI call. Uses Isolate.spawn because
+  /// cactusComplete streams tokens through a Dart callback.
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -168,13 +164,17 @@ class CactusLM {
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
+        final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
+        final optionsJson = jsonEncode(effectiveOptions.toJson());
+        final toolsJson = jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
-        return _context!.complete(
-          messages: messages,
-          options: effectiveOptions,
-          tools: tools,
+        return CactusContext.completeAt(
+          handleAddress: _context!.handle.address,
+          messagesJson: messagesJson,
+          optionsJson: optionsJson,
+          toolsJson: toolsJson,
           onToken: onToken,
-          pcmData: audio,
+          pcmData: audio != null ? Uint8List.fromList(audio) : null,
         );
       });
     } finally {
@@ -220,6 +220,7 @@ class CactusLM {
     );
   }
 
+  /// Prefill via isolated FFI call.
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -237,12 +238,16 @@ class CactusLM {
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
+        final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
+        final optionsJson = jsonEncode(effectiveOptions.toJson());
+        final toolsJson = jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
-        return _context!.prefill(
-          messages: messages,
-          options: effectiveOptions,
-          tools: tools,
-          pcmData: audio,
+        return CactusContext.prefillAt(
+          handleAddress: _context!.handle.address,
+          messagesJson: messagesJson,
+          optionsJson: optionsJson,
+          toolsJson: toolsJson,
+          pcmData: audio != null ? Uint8List.fromList(audio) : null,
         );
       });
     } finally {
@@ -278,6 +283,7 @@ class CactusLM {
     });
   }
 
+  /// Embed via isolated FFI call.
   Future<CactusLMEmbedResult> embed({
     required String text,
     bool normalize = false,
@@ -287,7 +293,12 @@ class CactusLM {
 
     return _handleLock.synchronized(() async {
       if (_context == null) throw CactusException('Model not initialized');
-      return _context!.embed(text, normalize: normalize);
+
+      return compute(_embedInIsolate, {
+        'handle': _context!.handle.address,
+        'text': text,
+        'normalize': normalize,
+      });
     });
   }
 
@@ -334,7 +345,6 @@ class CactusLM {
     _context?.reset();
   }
 
-
   Future<List<CactusModel>> getModels() async {
     final registry = await HuggingFace.getRegistry();
     final models = registry.values.toList();
@@ -365,6 +375,14 @@ CactusLMScoreWindowResult _scoreWindowInIsolate(Map<String, dynamic> params) {
     params['start'] as int,
     params['end'] as int,
     params['context'] as int,
+  );
+}
+
+CactusLMEmbedResult _embedInIsolate(Map<String, dynamic> params) {
+  return CactusContext.embedWithHandle(
+    params['handle'] as int,
+    params['text'] as String,
+    params['normalize'] as bool,
   );
 }
 

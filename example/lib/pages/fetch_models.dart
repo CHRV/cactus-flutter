@@ -60,7 +60,7 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
 
   Future<void> _downloadModel(CactusModel model, String quantization, bool pro) async {
     try {
-      await lm.downloadModel(
+      await lm.download(
         model: model.slug,
         quantization: quantization,
         pro: pro,

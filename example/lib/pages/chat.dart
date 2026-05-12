@@ -124,7 +124,7 @@ Future<void> _setupCactusLM() async {
       options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
     );
     try {
-      await cactusLM.downloadModel(model: selectedModel!.slug);
+      await cactusLM.download(model: selectedModel!.slug);
       await cactusLM.initializeModel();
     } catch (e) {
       debugPrint('Failed to setup CactusLM: $e');

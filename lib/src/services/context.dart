@@ -1,9 +1,78 @@
 import 'dart:convert';
 import 'dart:ffi';
-import 'dart:typed_data';
+import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/services/bindings.dart' as bindings;
+
+// ---------------------------------------------------------------------------
+// Isolate message types (all fields are Sendable / primitive)
+// ---------------------------------------------------------------------------
+
+class _TokenMessage {
+  final String token;
+  const _TokenMessage(this.token);
+}
+
+class _CompleteResultMessage {
+  final CactusLMCompleteResult result;
+  const _CompleteResultMessage(this.result);
+}
+
+class _TranscribeResultMessage {
+  final CactusSTTTranscribeResult result;
+  const _TranscribeResultMessage(this.result);
+}
+
+class _ErrorMessage {
+  final String message;
+  const _ErrorMessage(this.message);
+}
+
+// ---------------------------------------------------------------------------
+// Args bundles (Sendable)
+// ---------------------------------------------------------------------------
+
+class _CompleteIsolateArgs {
+  final int handleAddress;
+  final String messagesJson;
+  final String optionsJson;
+  final String toolsJson;
+  final Uint8List? pcmData;
+  final SendPort sendPort;
+
+  const _CompleteIsolateArgs({
+    required this.handleAddress,
+    required this.messagesJson,
+    required this.optionsJson,
+    required this.toolsJson,
+    this.pcmData,
+    required this.sendPort,
+  });
+}
+
+class _TranscribeIsolateArgs {
+  final int handleAddress;
+  final String? audioPath;
+  final String prompt;
+  final String optionsJson;
+  final Uint8List? pcmData;
+  final SendPort sendPort;
+
+  const _TranscribeIsolateArgs({
+    required this.handleAddress,
+    this.audioPath,
+    required this.prompt,
+    required this.optionsJson,
+    this.pcmData,
+    required this.sendPort,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CactusContext
+// ---------------------------------------------------------------------------
 
 class CactusContext {
   final Pointer<Void> _handle;
@@ -38,6 +107,11 @@ class CactusContext {
   void stop() {
     bindings.cactusStop(_handle);
   }
+
+  // -------------------------------------------------------------------------
+  // Complete — direct call (blocking); callers that need isolation should
+  // use [completeAt] which spawns an isolate.
+  // -------------------------------------------------------------------------
 
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
@@ -81,23 +155,51 @@ class CactusContext {
     );
   }
 
+  /// Spawns an isolate to run [cactusComplete] without blocking the main
+  /// thread. The native [NativeCallable] is created _inside_ the isolate
+  /// (required by dart:ffi). Token callbacks are delivered as messages.
   static Future<CactusLMCompleteResult> completeAt({
     required int handleAddress,
-    required List<CactusLMMessage> messages,
-    CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
+    required String messagesJson,
+    required String optionsJson,
+    required String toolsJson,
     CactusTokenCallback? onToken,
-    List<int>? pcmData,
-  }) {
-    final context = CactusContext.fromAddress(handleAddress);
-    return context.complete(
-      messages: messages,
-      options: options,
-      tools: tools,
-      onToken: onToken,
-      pcmData: pcmData,
+    Uint8List? pcmData,
+  }) async {
+    final receivePort = ReceivePort();
+    final sendPort = receivePort.sendPort;
+
+    await Isolate.spawn(
+      _completeInIsolate,
+      _CompleteIsolateArgs(
+        handleAddress: handleAddress,
+        messagesJson: messagesJson,
+        optionsJson: optionsJson,
+        toolsJson: toolsJson,
+        pcmData: pcmData,
+        sendPort: sendPort,
+      ),
+      errorsAreFatal: true,
     );
+
+    CactusLMCompleteResult? result;
+    await for (final msg in receivePort) {
+      if (msg is _TokenMessage) {
+        onToken?.call(msg.token);
+      } else if (msg is _CompleteResultMessage) {
+        result = msg.result;
+        break;
+      } else if (msg is _ErrorMessage) {
+        throw Exception('Isolate error: ${msg.message}');
+      }
+    }
+
+    return result!;
   }
+
+  // -------------------------------------------------------------------------
+  // Prefill
+  // -------------------------------------------------------------------------
 
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
@@ -128,21 +230,26 @@ class CactusContext {
     );
   }
 
+  /// Runs prefill in an isolate via [compute].
   static Future<CactusLMPrefillResult> prefillAt({
     required int handleAddress,
-    required List<CactusLMMessage> messages,
-    CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
-    List<int>? pcmData,
-  }) {
-    final context = CactusContext.fromAddress(handleAddress);
-    return context.prefill(
-      messages: messages,
-      options: options,
-      tools: tools,
-      pcmData: pcmData,
-    );
+    required String messagesJson,
+    required String optionsJson,
+    required String toolsJson,
+    Uint8List? pcmData,
+  }) async {
+    return compute(_prefillInIsolate, <String, dynamic>{
+      'handle': handleAddress,
+      'messagesJson': messagesJson,
+      'optionsJson': optionsJson,
+      'toolsJson': toolsJson,
+      'pcmData': pcmData,
+    });
   }
+
+  // -------------------------------------------------------------------------
+  // Tokenize
+  // -------------------------------------------------------------------------
 
   Future<CactusLMTokenizeResult> tokenize(String text) async {
     final tokens = bindings.cactusTokenize(_handle, text);
@@ -154,6 +261,10 @@ class CactusContext {
     final tokens = bindings.cactusTokenize(context.handle, text);
     return CactusLMTokenizeResult(tokens: tokens);
   }
+
+  // -------------------------------------------------------------------------
+  // Score window
+  // -------------------------------------------------------------------------
 
   Future<CactusLMScoreWindowResult> scoreWindow({
     required List<int> tokens,
@@ -191,6 +302,10 @@ class CactusContext {
     return CactusLMScoreWindowResult(score: data['score']?.toDouble() ?? 0.0);
   }
 
+  // -------------------------------------------------------------------------
+  // Embed text
+  // -------------------------------------------------------------------------
+
   Future<CactusLMEmbedResult> embed(String text, {bool normalize = true}) async {
     final embedding = bindings.cactusEmbed(_handle, text, normalize);
     return CactusLMEmbedResult(embedding: embedding.toList());
@@ -201,6 +316,10 @@ class CactusContext {
     final embedding = bindings.cactusEmbed(context.handle, text, normalize);
     return CactusLMEmbedResult(embedding: embedding.toList());
   }
+
+  // -------------------------------------------------------------------------
+  // Embed image
+  // -------------------------------------------------------------------------
 
   Future<CactusLMImageEmbedResult> embedImage(String imagePath) async {
     final embedding = bindings.cactusImageEmbed(_handle, imagePath);
@@ -213,6 +332,10 @@ class CactusContext {
     return CactusLMImageEmbedResult(embedding: embedding.toList());
   }
 
+  // -------------------------------------------------------------------------
+  // Embed audio
+  // -------------------------------------------------------------------------
+
   Future<CactusSTTAudioEmbedResult> embedAudio(String audioPath) async {
     final embedding = bindings.cactusAudioEmbed(_handle, audioPath);
     return CactusSTTAudioEmbedResult(embedding: embedding.toList());
@@ -223,6 +346,10 @@ class CactusContext {
     final embedding = bindings.cactusAudioEmbed(context.handle, audioPath);
     return CactusSTTAudioEmbedResult(embedding: embedding.toList());
   }
+
+  // -------------------------------------------------------------------------
+  // RAG query
+  // -------------------------------------------------------------------------
 
   Future<CactusLMRagQueryResult> ragQuery(String query, {int topK = 5}) async {
     final resultJson = bindings.cactusRagQuery(_handle, query, topK);
@@ -248,6 +375,11 @@ class CactusContext {
     )).toList();
     return CactusLMRagQueryResult(chunks: chunks, error: data['error']);
   }
+
+  // -------------------------------------------------------------------------
+  // Transcribe — direct call (blocking); callers that need isolation should
+  // use [transcribeAt] which spawns an isolate.
+  // -------------------------------------------------------------------------
 
   Future<CactusSTTTranscribeResult> transcribe({
     String? audioPath,
@@ -287,6 +419,9 @@ class CactusContext {
     );
   }
 
+  /// Spawns an isolate to run [cactusTranscribe] without blocking the main
+  /// thread. The native [NativeCallable] is created _inside_ the isolate
+  /// (required by dart:ffi). Token callbacks are delivered as messages.
   static Future<CactusSTTTranscribeResult> transcribeAt({
     required int handleAddress,
     String? audioPath,
@@ -294,16 +429,42 @@ class CactusContext {
     String? prompt,
     CactusSTTTranscribeOptions? options,
     CactusTokenCallback? onToken,
-  }) {
-    final context = CactusContext.fromAddress(handleAddress);
-    return context.transcribe(
-      audioPath: audioPath,
-      pcmData: pcmData,
-      prompt: prompt,
-      options: options,
-      onToken: onToken,
+  }) async {
+    final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
+    final receivePort = ReceivePort();
+    final sendPort = receivePort.sendPort;
+
+    await Isolate.spawn(
+      _transcribeInIsolate,
+      _TranscribeIsolateArgs(
+        handleAddress: handleAddress,
+        audioPath: audioPath,
+        prompt: prompt ?? '',
+        optionsJson: optionsJson,
+        pcmData: pcmData != null ? Uint8List.fromList(pcmData) : null,
+        sendPort: sendPort,
+      ),
+      errorsAreFatal: true,
     );
+
+    CactusSTTTranscribeResult? result;
+    await for (final msg in receivePort) {
+      if (msg is _TokenMessage) {
+        onToken?.call(msg.token);
+      } else if (msg is _TranscribeResultMessage) {
+        result = msg.result;
+        break;
+      } else if (msg is _ErrorMessage) {
+        throw Exception('Isolate error: ${msg.message}');
+      }
+    }
+
+    return result!;
   }
+
+  // -------------------------------------------------------------------------
+  // Detect language
+  // -------------------------------------------------------------------------
 
   Future<CactusSTTDetectLanguageResult> detectLanguage({
     String? audioPath,
@@ -323,6 +484,26 @@ class CactusContext {
       confidence: data['confidence']?.toDouble(),
     );
   }
+
+  /// Runs detectLanguage in an isolate via [compute].
+  static Future<CactusSTTDetectLanguageResult> detectLanguageAt({
+    required int handleAddress,
+    String? audioPath,
+    List<int>? pcmData,
+    CactusSTTDetectLanguageOptions? options,
+  }) async {
+    final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
+    return compute(_detectLanguageInIsolate, <String, dynamic>{
+      'handle': handleAddress,
+      'audioPath': audioPath,
+      'optionsJson': optionsJson,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // VAD
+  // -------------------------------------------------------------------------
 
   Future<CactusAudioVADResult> vad({
     String? audioPath,
@@ -349,32 +530,25 @@ class CactusContext {
     );
   }
 
-  static CactusAudioVADResult vadWithHandle(
-    int address,
+  /// Runs VAD in an isolate via [compute].
+  static Future<CactusAudioVADResult> vadAt({
+    required int handleAddress,
     String? audioPath,
     List<int>? pcmData,
     CactusAudioVADOptions? options,
-  ) {
-    final context = CactusContext.fromAddress(address);
+  }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
-    final resultJson = bindings.cactusVad(
-      context.handle,
-      audioPath,
-      optionsJson,
-      pcmData != null ? Uint8List.fromList(pcmData) : null,
-    );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    final List<dynamic> segmentsData = data['segments'] ?? [];
-    final segments = segmentsData.map((s) => CactusAudioVADSegment(
-      start: s['start'] ?? 0,
-      end: s['end'] ?? 0,
-    )).toList();
-    return CactusAudioVADResult(
-      segments: segments,
-      totalTime: data['total_time_ms']?.toDouble() ?? 0.0,
-      ramUsage: data['ram_usage_mb']?.toDouble() ?? 0.0,
-    );
+    return compute(_vadInIsolate, <String, dynamic>{
+      'handle': handleAddress,
+      'audioPath': audioPath,
+      'optionsJson': optionsJson,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
   }
+
+  // -------------------------------------------------------------------------
+  // Diarize
+  // -------------------------------------------------------------------------
 
   Future<CactusAudioDiarizeResult> diarize({
     String? audioPath,
@@ -399,30 +573,25 @@ class CactusContext {
     );
   }
 
-  static CactusAudioDiarizeResult diarizeWithHandle(
-    int address,
+  /// Runs diarize in an isolate via [compute].
+  static Future<CactusAudioDiarizeResult> diarizeAt({
+    required int handleAddress,
     String? audioPath,
     List<int>? pcmData,
     CactusAudioDiarizeOptions? options,
-  ) {
-    final context = CactusContext.fromAddress(address);
+  }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
-    final resultJson = bindings.cactusDiarize(
-      context.handle,
-      audioPath,
-      optionsJson,
-      pcmData != null ? Uint8List.fromList(pcmData) : null,
-    );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    return CactusAudioDiarizeResult(
-      success: data['success'] ?? false,
-      error: data['error'],
-      numSpeakers: data['num_speakers'] ?? 0,
-      scores: (data['scores'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
-      totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
-      ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
-    );
+    return compute(_diarizeInIsolate, <String, dynamic>{
+      'handle': handleAddress,
+      'audioPath': audioPath,
+      'optionsJson': optionsJson,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
   }
+
+  // -------------------------------------------------------------------------
+  // Embed speaker
+  // -------------------------------------------------------------------------
 
   Future<CactusAudioEmbedSpeakerResult> embedSpeaker({
     String? audioPath,
@@ -446,29 +615,25 @@ class CactusContext {
     );
   }
 
-  static CactusAudioEmbedSpeakerResult embedSpeakerWithHandle(
-    int address,
+  /// Runs embedSpeaker in an isolate via [compute].
+  static Future<CactusAudioEmbedSpeakerResult> embedSpeakerAt({
+    required int handleAddress,
     String? audioPath,
     List<int>? pcmData,
     CactusAudioEmbedSpeakerOptions? options,
-  ) {
-    final context = CactusContext.fromAddress(address);
+  }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
-    final resultJson = bindings.cactusEmbedSpeaker(
-      context.handle,
-      audioPath,
-      optionsJson,
-      pcmData != null ? Uint8List.fromList(pcmData) : null,
-    );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    return CactusAudioEmbedSpeakerResult(
-      success: data['success'] ?? false,
-      error: data['error'],
-      embedding: (data['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
-      totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
-      ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
-    );
+    return compute(_embedSpeakerInIsolate, <String, dynamic>{
+      'handle': handleAddress,
+      'audioPath': audioPath,
+      'optionsJson': optionsJson,
+      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+    });
   }
+
+  // -------------------------------------------------------------------------
+  // Stream transcription
+  // -------------------------------------------------------------------------
 
   int streamTranscribeStart({CactusSTTStreamTranscribeStartOptions? options}) {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
@@ -553,6 +718,201 @@ class CactusContext {
   }
 }
 
+// ===========================================================================
+// Top-level isolate entry-point functions
+// ===========================================================================
+//
+// IMPORTANT: These run inside a spawned isolate.  [NativeCallable] objects
+// MUST be created here (not on the main thread) per dart:ffi requirements.
+// ===========================================================================
+
+/// Entry point for [CactusContext.completeAt] — runs in spawned isolate.
+/// Calls native `cactus_complete` with a Dart closure callback and streams
+/// tokens + final result back via [SendPort].
+void _completeInIsolate(_CompleteIsolateArgs args) {
+  final context = CactusContext.fromAddress(args.handleAddress);
+
+  try {
+    final resultJson = bindings.cactusComplete(
+      context.handle,
+      args.messagesJson,
+      args.optionsJson,
+      args.toolsJson,
+      (token, tokenId) {
+        args.sendPort.send(_TokenMessage(token));
+      },
+      pcmData: args.pcmData,
+    );
+
+    final Map<String, dynamic> data = jsonDecode(resultJson);
+    args.sendPort.send(
+      _CompleteResultMessage(
+        CactusLMCompleteResult(
+          success: data['success'] ?? false,
+          response: data['response'] ?? '',
+          thinking: data['thinking'],
+          cloudHandoff: data['cloud_handoff'],
+          confidence: data['confidence']?.toDouble(),
+          timeToFirstTokenMs: data['time_to_first_token_ms']?.toDouble() ?? 0.0,
+          totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
+          prefillTokens: data['prefill_tokens'] ?? 0,
+          prefillTps: data['prefill_tps']?.toDouble() ?? 0.0,
+          decodeTokens: data['decode_tokens'] ?? 0,
+          decodeTps: data['decode_tps']?.toDouble() ?? 0.0,
+          totalTokens: data['total_tokens'] ?? 0,
+          ramUsageMb: data['ram_usage_mb']?.toDouble(),
+        ),
+      ),
+    );
+  } catch (e) {
+    args.sendPort.send(_ErrorMessage(e.toString()));
+  }
+}
+
+/// Entry point for [CactusContext.transcribeAt] — runs in spawned isolate.
+/// Calls native `cactus_transcribe` with a Dart closure callback and streams
+/// tokens + final result back via [SendPort].
+void _transcribeInIsolate(_TranscribeIsolateArgs args) {
+  final context = CactusContext.fromAddress(args.handleAddress);
+
+  try {
+    final resultJson = bindings.cactusTranscribe(
+      context.handle,
+      args.audioPath,
+      args.prompt,
+      args.optionsJson,
+      (token, tokenId) {
+        args.sendPort.send(_TokenMessage(token));
+      },
+      args.pcmData,
+    );
+
+    final Map<String, dynamic> data = jsonDecode(resultJson);
+    args.sendPort.send(
+      _TranscribeResultMessage(
+        CactusSTTTranscribeResult(
+          success: data['success'] ?? false,
+          response: data['response'] ?? '',
+          cloudHandoff: data['cloud_handoff'],
+          confidence: data['confidence']?.toDouble(),
+          timeToFirstTokenMs: data['time_to_first_token_ms']?.toDouble() ?? 0.0,
+          totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
+          prefillTokens: data['prefill_tokens'] ?? 0,
+          prefillTps: data['prefill_tps']?.toDouble() ?? 0.0,
+          decodeTokens: data['decode_tokens'] ?? 0,
+          decodeTps: data['decode_tps']?.toDouble() ?? 0.0,
+          totalTokens: data['total_tokens'] ?? 0,
+          ramUsageMb: data['ram_usage_mb']?.toDouble(),
+        ),
+      ),
+    );
+  } catch (e) {
+    args.sendPort.send(_ErrorMessage(e.toString()));
+  }
+}
+
+/// Entry point for prefill — runs via compute().
+CactusLMPrefillResult _prefillInIsolate(Map<String, dynamic> params) {
+  final context = CactusContext.fromAddress(params['handle'] as int);
+  final resultJson = bindings.cactusPrefill(
+    context.handle,
+    params['messagesJson'] as String,
+    params['optionsJson'] as String,
+    params['toolsJson'] as String,
+    pcmData: params['pcmData'] as Uint8List?,
+  );
+  final Map<String, dynamic> data = jsonDecode(resultJson);
+  return CactusLMPrefillResult(
+    success: data['success'] ?? false,
+    error: data['error'],
+    prefillTokens: data['prefill_tokens'] ?? 0,
+    prefillTps: data['prefill_tps']?.toDouble() ?? 0.0,
+    totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
+    ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
+  );
+}
+
+/// Entry point for detectLanguage — runs via compute().
+CactusSTTDetectLanguageResult _detectLanguageInIsolate(Map<String, dynamic> params) {
+  final context = CactusContext.fromAddress(params['handle'] as int);
+  final resultJson = bindings.cactusDetectLanguage(
+    context.handle,
+    params['audioPath'] as String?,
+    params['optionsJson'] as String,
+    params['pcmData'] as Uint8List?,
+  );
+  final Map<String, dynamic> data = jsonDecode(resultJson);
+  return CactusSTTDetectLanguageResult(
+    language: data['language'] ?? '',
+    confidence: data['confidence']?.toDouble(),
+  );
+}
+
+/// Entry point for vad — runs via compute().
+CactusAudioVADResult _vadInIsolate(Map<String, dynamic> params) {
+  final context = CactusContext.fromAddress(params['handle'] as int);
+  final resultJson = bindings.cactusVad(
+    context.handle,
+    params['audioPath'] as String?,
+    params['optionsJson'] as String,
+    params['pcmData'] as Uint8List?,
+  );
+  final Map<String, dynamic> data = jsonDecode(resultJson);
+  final List<dynamic> segmentsData = data['segments'] ?? [];
+  final segments = segmentsData.map((s) => CactusAudioVADSegment(
+    start: s['start'] ?? 0,
+    end: s['end'] ?? 0,
+  )).toList();
+  return CactusAudioVADResult(
+    segments: segments,
+    totalTime: data['total_time_ms']?.toDouble() ?? 0.0,
+    ramUsage: data['ram_usage_mb']?.toDouble() ?? 0.0,
+  );
+}
+
+/// Entry point for diarize — runs via compute().
+CactusAudioDiarizeResult _diarizeInIsolate(Map<String, dynamic> params) {
+  final context = CactusContext.fromAddress(params['handle'] as int);
+  final resultJson = bindings.cactusDiarize(
+    context.handle,
+    params['audioPath'] as String?,
+    params['optionsJson'] as String,
+    params['pcmData'] as Uint8List?,
+  );
+  final Map<String, dynamic> data = jsonDecode(resultJson);
+  return CactusAudioDiarizeResult(
+    success: data['success'] ?? false,
+    error: data['error'],
+    numSpeakers: data['num_speakers'] ?? 0,
+    scores: (data['scores'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+    totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
+    ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
+  );
+}
+
+/// Entry point for embedSpeaker — runs via compute().
+CactusAudioEmbedSpeakerResult _embedSpeakerInIsolate(Map<String, dynamic> params) {
+  final context = CactusContext.fromAddress(params['handle'] as int);
+  final resultJson = bindings.cactusEmbedSpeaker(
+    context.handle,
+    params['audioPath'] as String?,
+    params['optionsJson'] as String,
+    params['pcmData'] as Uint8List?,
+  );
+  final Map<String, dynamic> data = jsonDecode(resultJson);
+  return CactusAudioEmbedSpeakerResult(
+    success: data['success'] ?? false,
+    error: data['error'],
+    embedding: (data['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+    totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
+    ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
+  );
+}
+
+// ===========================================================================
+// CactusIndex (wrapper around native cactus_index_t)
+// ===========================================================================
+
 class CactusIndex {
   final Pointer<Void> _handle;
 
@@ -608,7 +968,6 @@ class CactusIndex {
           embeddings.add([]);
         }
       } catch (_) {
-        // Document not found (deleted) — return empty data for this slot.
         documents.add('');
         metadatas.add('');
         embeddings.add([]);
