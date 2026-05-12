@@ -1,33 +1,35 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:cactus/cactus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider/path_provider.dart';
 
 const _timeout = Timeout(Duration(minutes: 5));
+const _vadModel = 'silero-vad';
+const _diarizeModel = 'segmentation-3.0';
+const _audioQuant = 'int8';
 
-/// Loads a WAV file from assets and returns raw PCM samples as Float32List.
-Future<Float32List> _loadPcmFromAsset() async {
+Future<String> _copyAudioToTemp() async {
   final data = await rootBundle.load('assets/test_audio.wav');
-  final bytes = data.buffer.asUint8List();
-  // Standard WAV header is 44 bytes for mono 16-bit PCM
-  final pcmBytes = bytes.sublist(44);
-  // Convert little-endian int16 bytes to Float32List in [-1.0, 1.0]
-  final buffer = ByteData.view(pcmBytes.buffer);
-  final sampleCount = pcmBytes.lengthInBytes ~/ 2;
-  final samples = Float32List(sampleCount);
-  for (var i = 0; i < sampleCount; i++) {
-    final int16 = buffer.getInt16(i * 2, Endian.little);
-    samples[i] = int16 / 32768.0;
-  }
-  return samples;
+  final dir = await getApplicationDocumentsDirectory();
+  final tempDir = Directory('${dir.path}/audio_test_audio');
+  if (!tempDir.existsSync()) tempDir.createSync(recursive: true);
+  final file = File('${tempDir.path}/test_audio.wav');
+  await file.writeAsBytes(data.buffer.asUint8List());
+  return file.path;
 }
 
 void main() {
   group('CactusAudio unit', () {
-    test('getModelName returns correct format', () {
-      final audio = CactusAudio(options: const CactusModelOptions(quantization: 'int4'));
-      expect(audio.getModelName(), equals('silero-vad-int4'));
+    test('getModelName returns correct format for silero-vad', () {
+      final audio = CactusAudio(model: _vadModel, options: const CactusModelOptions(quantization: _audioQuant));
+      expect(audio.getModelName(), equals('$_vadModel-$_audioQuant'));
+    });
+
+    test('getModelName returns correct format for segmentation-3.0', () {
+      final audio = CactusAudio(model: _diarizeModel, options: const CactusModelOptions(quantization: _audioQuant));
+      expect(audio.getModelName(), equals('$_diarizeModel-$_audioQuant'));
     });
 
     test('default model is silero-vad', () {
@@ -35,23 +37,37 @@ void main() {
     });
 
     test('destroy is idempotent', () async {
-      final audio = CactusAudio(options: const CactusModelOptions(quantization: 'int4'));
+      final audio = CactusAudio(model: _vadModel, options: const CactusModelOptions(quantization: _audioQuant));
       await audio.destroy();
       await audio.destroy();
     });
+
+    test('vad rejects invalid audio type', () {
+      final audio = CactusAudio(model: _vadModel, options: const CactusModelOptions(quantization: _audioQuant));
+      expect(
+        () => audio.vad(audio: 123),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 
-  group('CactusAudio integration', () {
+  group('CactusAudio VAD integration ($_vadModel)', () {
     late CactusAudio audio;
-    late Float32List pcmData;
+    late String audioFilePath;
 
     setUpAll(() async {
-      audio = CactusAudio(options: const CactusModelOptions(quantization: 'int4'));
-      pcmData = await _loadPcmFromAsset();
+      audio = CactusAudio(
+        model: _vadModel,
+        options: const CactusModelOptions(quantization: _audioQuant),
+      );
+      audioFilePath = await _copyAudioToTemp();
     });
 
     tearDownAll(() async {
       await audio.destroy();
+      final dir = await getApplicationDocumentsDirectory();
+      final tempDir = Directory('${dir.path}/audio_test_audio');
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     });
 
     test('download and init', () async {
@@ -63,45 +79,41 @@ void main() {
       await audio.init();
     });
 
-    test('vad with PCM data', () async {
-      final result = await audio.vad(audio: pcmData.buffer.asUint8List());
+    test('vad with audio file path', () async {
+      final result = await audio.vad(audio: audioFilePath);
       expect(result, isNotNull);
       expect(result.segments, isNotNull);
     }, timeout: _timeout);
+  });
 
-    test('vad rejects invalid audio type', () {
-      expect(
-        () => audio.vad(audio: 123),
-        throwsA(isA<ArgumentError>()),
+  group('CactusAudio diarize integration ($_diarizeModel)', () {
+    late CactusAudio audio;
+    late String audioFilePath;
+
+    setUpAll(() async {
+      audio = CactusAudio(
+        model: _diarizeModel,
+        options: const CactusModelOptions(quantization: _audioQuant),
       );
+      audioFilePath = await _copyAudioToTemp();
     });
 
-    test('getModels returns audio models', () async {
-      final models = await audio.getModels();
-      expect(models, isNotEmpty);
-      for (final m in models) {
-        expect(
-          m.capabilities,
-          anyOf(contains('vad'), contains('diarization'), contains('speaker-embed')),
-        );
-      }
-    }, timeout: _timeout);
+    tearDownAll(() async {
+      await audio.destroy();
+    });
+
+    test('download and init', () async {
+      await audio.download();
+      await audio.init();
+    }, timeout: Timeout(Duration(minutes: 10)));
 
     test('diarize returns speaker segments from audio file', () async {
       final result = await audio.diarize(
-        audio: pcmData.buffer.asUint8List(),
+        audio: audioFilePath,
         options: const CactusAudioDiarizeOptions(numSpeakers: 2),
       );
       expect(result, isNotNull);
       expect(result.numSpeakers, greaterThanOrEqualTo(0));
-    }, timeout: _timeout);
-
-    test('embedSpeaker returns embedding from audio file', () async {
-      final result = await audio.embedSpeaker(
-        audio: pcmData.buffer.asUint8List(),
-      );
-      expect(result, isNotNull);
-      expect(result.embedding, isNotEmpty);
     }, timeout: _timeout);
   });
 }

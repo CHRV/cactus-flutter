@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'package:cactus/models/types.dart';
@@ -519,10 +521,12 @@ class CactusContext {
     );
     final Map<String, dynamic> data = jsonDecode(resultJson);
     final List<dynamic> segmentsData = data['segments'] ?? [];
-    final segments = segmentsData.map((s) => CactusAudioVADSegment(
-      start: s['start'] ?? 0,
-      end: s['end'] ?? 0,
-    )).toList();
+    final segments = segmentsData
+        .map((s) => CactusAudioVADSegment(
+              start: s['start'] ?? 0,
+              end: s['end'] ?? 0,
+            ))
+        .toList();
     return CactusAudioVADResult(
       segments: segments,
       totalTime: data['total_time_ms']?.toDouble() ?? 0.0,
@@ -534,7 +538,7 @@ class CactusContext {
   static Future<CactusAudioVADResult> vadAt({
     required int handleAddress,
     String? audioPath,
-    List<int>? pcmData,
+    Uint8List? pcmData,
     CactusAudioVADOptions? options,
   }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
@@ -542,7 +546,7 @@ class CactusContext {
       'handle': handleAddress,
       'audioPath': audioPath,
       'optionsJson': optionsJson,
-      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+      'pcmData': pcmData,
     });
   }
 
@@ -577,7 +581,7 @@ class CactusContext {
   static Future<CactusAudioDiarizeResult> diarizeAt({
     required int handleAddress,
     String? audioPath,
-    List<int>? pcmData,
+    Uint8List? pcmData,
     CactusAudioDiarizeOptions? options,
   }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
@@ -585,7 +589,7 @@ class CactusContext {
       'handle': handleAddress,
       'audioPath': audioPath,
       'optionsJson': optionsJson,
-      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+      'pcmData': pcmData,
     });
   }
 
@@ -619,7 +623,7 @@ class CactusContext {
   static Future<CactusAudioEmbedSpeakerResult> embedSpeakerAt({
     required int handleAddress,
     String? audioPath,
-    List<int>? pcmData,
+    Uint8List? pcmData,
     CactusAudioEmbedSpeakerOptions? options,
   }) async {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
@@ -627,7 +631,7 @@ class CactusContext {
       'handle': handleAddress,
       'audioPath': audioPath,
       'optionsJson': optionsJson,
-      'pcmData': pcmData != null ? Uint8List.fromList(pcmData) : null,
+      'pcmData': pcmData,
     });
   }
 
@@ -859,10 +863,12 @@ CactusAudioVADResult _vadInIsolate(Map<String, dynamic> params) {
   );
   final Map<String, dynamic> data = jsonDecode(resultJson);
   final List<dynamic> segmentsData = data['segments'] ?? [];
-  final segments = segmentsData.map((s) => CactusAudioVADSegment(
-    start: s['start'] ?? 0,
-    end: s['end'] ?? 0,
-  )).toList();
+  final segments = segmentsData
+      .map((s) => CactusAudioVADSegment(
+            start: s['start'] ?? 0,
+            end: s['end'] ?? 0,
+          ))
+      .toList();
   return CactusAudioVADResult(
     segments: segments,
     totalTime: data['total_time_ms']?.toDouble() ?? 0.0,
@@ -884,7 +890,10 @@ CactusAudioDiarizeResult _diarizeInIsolate(Map<String, dynamic> params) {
     success: data['success'] ?? false,
     error: data['error'],
     numSpeakers: data['num_speakers'] ?? 0,
-    scores: (data['scores'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+    scores: (data['scores'] as List<dynamic>?)
+            ?.map((e) => e.toDouble() as double)
+            .toList() ??
+        [],
     totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
     ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
   );
@@ -903,7 +912,10 @@ CactusAudioEmbedSpeakerResult _embedSpeakerInIsolate(Map<String, dynamic> params
   return CactusAudioEmbedSpeakerResult(
     success: data['success'] ?? false,
     error: data['error'],
-    embedding: (data['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+    embedding: (data['embedding'] as List<dynamic>?)
+            ?.map((e) => e.toDouble() as double)
+            .toList() ??
+        [],
     totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
     ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
   );

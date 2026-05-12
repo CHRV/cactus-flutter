@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
 
 const _timeout = Timeout(Duration(minutes: 3));
-const _lmModel = 'lfm2-350m';
+const _lmModel = 'lfm2-vl-450m';
 const _lmQuant = 'int4';
 
 void main() {

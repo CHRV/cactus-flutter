@@ -105,23 +105,23 @@ class CactusAudio {
     required dynamic audio,
     CactusAudioVADOptions? options,
   }) async {
+    String? audioFilePath;
+    Uint8List? pcmData;
+    if (audio is String) {
+      audioFilePath = audio;
+    } else if (audio is List<int>) {
+      pcmData = Uint8List.fromList(audio);
+    } else {
+      throw ArgumentError(
+          'audio must be a String (filepath) or List<int> (PCM data)');
+    }
+
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
     return _handleLock.synchronized(() async {
-      String? audioFilePath;
-      Uint8List? pcmData;
-      if (audio is String) {
-        audioFilePath = audio;
-      } else if (audio is List<int>) {
-        pcmData = Uint8List.fromList(audio);
-      } else {
-        throw ArgumentError(
-            'audio must be a String (filepath) or List<int> (PCM data)');
-      }
-
       return CactusContext.vadAt(
-        handleAddress: _context!.handle.address,
+        handleAddress: _context!.address,
         audioPath: audioFilePath,
         pcmData: pcmData,
         options: options,
@@ -133,23 +133,23 @@ class CactusAudio {
     required dynamic audio,
     CactusAudioDiarizeOptions? options,
   }) async {
+    String? audioFilePath;
+    Uint8List? pcmData;
+    if (audio is String) {
+      audioFilePath = audio;
+    } else if (audio is List<int>) {
+      pcmData = Uint8List.fromList(audio);
+    } else {
+      throw ArgumentError(
+          'audio must be a String (filepath) or List<int> (PCM data)');
+    }
+
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
     return _handleLock.synchronized(() async {
-      String? audioFilePath;
-      Uint8List? pcmData;
-      if (audio is String) {
-        audioFilePath = audio;
-      } else if (audio is List<int>) {
-        pcmData = Uint8List.fromList(audio);
-      } else {
-        throw ArgumentError(
-            'audio must be a String (filepath) or List<int> (PCM data)');
-      }
-
       return CactusContext.diarizeAt(
-        handleAddress: _context!.handle.address,
+        handleAddress: _context!.address,
         audioPath: audioFilePath,
         pcmData: pcmData,
         options: options,
@@ -161,23 +161,23 @@ class CactusAudio {
     required dynamic audio,
     CactusAudioEmbedSpeakerOptions? options,
   }) async {
+    String? audioFilePath;
+    Uint8List? pcmData;
+    if (audio is String) {
+      audioFilePath = audio;
+    } else if (audio is List<int>) {
+      pcmData = Uint8List.fromList(audio);
+    } else {
+      throw ArgumentError(
+          'audio must be a String (filepath) or List<int> (PCM data)');
+    }
+
     await init();
     if (_context == null) throw CactusException('Model not initialized');
 
     return _handleLock.synchronized(() async {
-      String? audioFilePath;
-      Uint8List? pcmData;
-      if (audio is String) {
-        audioFilePath = audio;
-      } else if (audio is List<int>) {
-        pcmData = Uint8List.fromList(audio);
-      } else {
-        throw ArgumentError(
-            'audio must be a String (filepath) or List<int> (PCM data)');
-      }
-
       return CactusContext.embedSpeakerAt(
-        handleAddress: _context!.handle.address,
+        handleAddress: _context!.address,
         audioPath: audioFilePath,
         pcmData: pcmData,
         options: options,
