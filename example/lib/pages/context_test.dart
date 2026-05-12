@@ -10,7 +10,8 @@ class ContextTestPage extends StatefulWidget {
 }
 
 class _ContextTestPageState extends State<ContextTestPage> {
-  final lm = CactusLM();
+  CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -35,7 +36,7 @@ class _ContextTestPageState extends State<ContextTestPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -46,11 +47,15 @@ class _ContextTestPageState extends State<ContextTestPage> {
     });
 
     try {
+      _lm ??= CactusLM(
+          model: selectedModel!.slug,
+          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -86,8 +91,8 @@ class _ContextTestPageState extends State<ContextTestPage> {
 
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
-      );
+          model: selectedModel!.slug
+        );
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Ready to run 4K context test.';

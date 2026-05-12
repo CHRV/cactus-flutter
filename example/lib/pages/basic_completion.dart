@@ -10,7 +10,8 @@ class BasicCompletionPage extends StatefulWidget {
 }
 
 class _BasicCompletionPageState extends State<BasicCompletionPage> {
-  final lm = CactusLM();
+CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -31,7 +32,7 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -40,13 +41,17 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-    
+
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -82,8 +87,8 @@ class _BasicCompletionPageState extends State<BasicCompletionPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
-      );
+          model: selectedModel!.slug
+        );
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Ready to generate completions.';

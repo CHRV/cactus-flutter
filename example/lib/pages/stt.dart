@@ -16,7 +16,7 @@ class _STTPageState extends State<STTPage> {
   late CactusSTT _stt;
   late AudioRecorder _recorder;
 
-  List<VoiceModel> _voiceModels = [];
+  List<CactusModel> _voiceModels = [];
   String _selectedModel = "whisper-small";
 
   // State variables
@@ -28,7 +28,7 @@ class _STTPageState extends State<STTPage> {
   bool _isUsingDefaultModel = false;
   bool _isRecording = false;
   String _outputText = "Ready to start. Select a model and initialize to begin.";
-  CactusTranscriptionResult? _lastResponse;
+  CactusSTTTranscribeResult? _lastResponse;
   String _downloadProgress = "";
   double? _downloadPercentage;
   String _streamedText = "";
@@ -62,7 +62,7 @@ class _STTPageState extends State<STTPage> {
     });
 
     try {
-      final models = await _stt.getVoiceModels();
+      final models = await _stt.getModels();
       setState(() {
         _voiceModels = models;
         _isLoadingModels = false;
@@ -106,7 +106,7 @@ class _STTPageState extends State<STTPage> {
       // Download the model
       await _stt.downloadModel(
         model: _selectedModel,
-        downloadProcessCallback: (progress, message, isError) {
+        onProgress: (progress, message, isError) {
           setState(() {
             if (progress != null) {
               _downloadPercentage = progress;
@@ -126,7 +126,7 @@ class _STTPageState extends State<STTPage> {
       });
 
       // Initialize the model
-      await _stt.initializeModel(params: CactusInitParams(model: _selectedModel));
+      await _stt.initializeModel(model: _selectedModel);
 
       setState(() {
         _isInitializing = false;
@@ -220,44 +220,18 @@ class _STTPageState extends State<STTPage> {
           _outputText = "Transcribing recorded audio...";
         });
 
-        String streamedText = "";
-
         try {
-          // Transcribe from audio buffer
-          final streamedResult = await _stt.transcribeStream(
-            audioStream: Stream.value(audioData),
+          // Transcribe from audio buffer using transcribe (not transcribeStream)
+          final result = await _stt.transcribe(
+            audio: audioData.isNotEmpty ? audioData : List<int>.filled(16000, 0),
+            prompt: CactusSTT.defaultPrompt,
           );
-
-          // Listen to the token stream
-          streamedResult.stream.listen(
-            (token) {
-              setState(() {
-                streamedText += token;
-                _streamedText = streamedText;
-              });
-            },
-            onError: (error) {
-              setState(() {
-                _isTranscribing = false;
-                _outputText = "Error during streaming: ${error.toString()}";
-                _lastResponse = null;
-              });
-            },
-          );
-
-          // Wait for the final result
-          final transcriptionResult = await streamedResult.result;
 
           setState(() {
             _isTranscribing = false;
-            if (transcriptionResult.success) {
-              _lastResponse = transcriptionResult;
-              _streamedText = transcriptionResult.text;
-              _outputText = "Mic transcription completed successfully!";
-            } else {
-              _outputText = transcriptionResult.errorMessage ?? "Failed to transcribe recorded audio.";
-              _lastResponse = null;
-            }
+            _lastResponse = result;
+            _streamedText = result.text;
+            _outputText = "Mic transcription completed successfully!";
           });
         } catch (e) {
           setState(() {
@@ -308,52 +282,18 @@ class _STTPageState extends State<STTPage> {
           _lastResponse = null;
         });
 
-        // Create a temporary result to accumulate streamed text
-        String streamedText = "";
+        // Transcribe from file path
+        final result2 = await _stt.transcribe(
+          audio: audioFilePath,
+          prompt: CactusSTT.defaultPrompt,
+        );
 
-        try {
-          // Start streaming transcription from file
-          final streamedResult = await _stt.transcribeStream(
-            audioFilePath: audioFilePath,
-          );
-
-          // Listen to the token stream
-          streamedResult.stream.listen(
-            (token) {
-              setState(() {
-                streamedText += token;
-                _outputText = "Transcribing: $streamedText";
-              });
-            },
-            onError: (error) {
-              setState(() {
-                _isTranscribing = false;
-                _outputText = "Error during streaming: ${error.toString()}";
-                _lastResponse = null;
-              });
-            },
-          );
-
-          // Wait for the final result
-          final transcriptionResult = await streamedResult.result;
-
-          setState(() {
-            _isTranscribing = false;
-            if (transcriptionResult.success) {
-              _lastResponse = transcriptionResult;
-              _outputText = "File transcription completed successfully!";
-            } else {
-              _outputText = transcriptionResult.errorMessage ?? "Failed to transcribe audio file.";
-              _lastResponse = null;
-            }
-          });
-        } catch (e) {
-          setState(() {
-            _isTranscribing = false;
-            _outputText = "Error during transcription: ${e.toString()}";
-            _lastResponse = null;
-          });
-        }
+        setState(() {
+          _isTranscribing = false;
+          _lastResponse = result2;
+          _streamedText = result2.text;
+          _outputText = "File transcription completed successfully!";
+        });
       } else {
         // User cancelled the picker
         setState(() {
@@ -363,7 +303,7 @@ class _STTPageState extends State<STTPage> {
     } catch (e) {
       setState(() {
         _isTranscribing = false;
-        _outputText = "Error during file transcription: ${e.toString()}";
+        _outputText = "Error during transcription: ${e.toString()}";
         _lastResponse = null;
       });
     }

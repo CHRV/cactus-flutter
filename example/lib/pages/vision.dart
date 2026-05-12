@@ -14,7 +14,8 @@ class VisionPage extends StatefulWidget {
 }
 
 class _VisionPageState extends State<VisionPage> {
-  final lm = CactusLM();
+  CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -37,7 +38,7 @@ class _VisionPageState extends State<VisionPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -91,11 +92,15 @@ class _VisionPageState extends State<VisionPage> {
     });
 
     try {
-      await lm.downloadModel(
+      _lm = CactusLM(
+          model: selectedModel!.slug,
+          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        );
+        await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -138,7 +143,7 @@ class _VisionPageState extends State<VisionPage> {
 
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
+        model: selectedModel!.slug
       );
       setState(() {
         isModelLoaded = true;

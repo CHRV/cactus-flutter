@@ -10,7 +10,8 @@ class FunctionCallingPage extends StatefulWidget {
 }
 
 class _FunctionCallingPageState extends State<FunctionCallingPage> {
-  final lm = CactusLM();
+  CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -31,7 +32,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -40,13 +41,16 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-    
     try {
+      _lm ??= CactusLM(
+          model: selectedModel!.slug,
+          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -82,7 +86,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
+        model: selectedModel!.slug
       );
       setState(() {
         isModelLoaded = true;
@@ -115,38 +119,36 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
     try {
       final resp = await lm.generateCompletion(
         messages: [ChatMessage(content: 'How is the weather in New York?', role: "user")],
-        params: CactusCompletionParams(
-          tools: [
-            CactusTool(
-              name: 'get_weather',
-              description: 'Get weather for a location',
-              parameters: ToolParametersSchema(
-                properties: {
-                  'location': ToolParameter(type: 'string', description: 'City name', required: true),
-                },
-              ),
-            ),
-          ],
-        )
+        tools: [
+          CactusLMTool(
+            name: 'get_weather',
+            description: 'Get weather for a location',
+            parameters: {
+              'location': {
+                'type': 'string',
+                'description': 'City name',
+                'required': true,
+              },
+            },
+          ),
+        ],
       );
       
-      if (resp.success) {
-        setState(() {
-          lastResponse = resp.toolCalls.isNotEmpty
-              ? 'Tool Call: ${resp.toolCalls.last.name}\nArguments: ${resp.toolCalls.last.arguments}'
-              : resp.response;
-          lastTPS = resp.tokensPerSecond;
-          lastTTFT = resp.timeToFirstTokenMs;
-          outputText = 'Generation completed successfully!';
-        });
-      } else {
-        setState(() {
-          outputText = 'Failed to generate response.';
-          lastResponse = null;
-          lastTPS = null;
-          lastTTFT = null;
-        });
-      }
+      if (resp.toolCalls?.isNotEmpty ?? false) {
+          setState(() {
+            lastResponse = 'Tool Call: ${resp.toolCalls!.last.name}\nArguments: ${resp.toolCalls!.last.arguments}';
+            lastTPS = resp.tokensPerSecond;
+            lastTTFT = resp.timeToFirstTokenMs;
+            outputText = 'Generation completed successfully!';
+          });
+        } else {
+          setState(() {
+            outputText = 'Failed to generate response.';
+            lastResponse = null;
+            lastTPS = null;
+            lastTTFT = null;
+          });
+        }
     } catch (e) {
       setState(() {
         outputText = 'Error generating response: $e';

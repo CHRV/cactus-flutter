@@ -10,7 +10,8 @@ class StreamingCompletionPage extends StatefulWidget {
 }
 
 class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
-  final lm = CactusLM();
+  CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -32,7 +33,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -41,13 +42,17 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-    
+
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -83,7 +88,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
+        model: selectedModel!.slug
       );
       setState(() {
         isModelLoaded = true;
@@ -119,11 +124,8 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     
     try {
       final streamedResult = await lm.generateCompletionStream(
-        params: CactusCompletionParams(
-          maxTokens: 200
-        ),
         messages: [
-          ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system"), 
+          ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system"),
           ChatMessage(content: 'Hi, how are you?', role: "user")
         ],
       );

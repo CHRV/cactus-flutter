@@ -1,8 +1,8 @@
+import 'dart:io';
+
 import 'package:cactus/cactus.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:read_pdf_text/read_pdf_text.dart';
+import 'package:path_provider/path_provider.dart';
 import '../widgets/model_selector.dart';
 
 class RAGPage extends StatefulWidget {
@@ -13,53 +13,60 @@ class RAGPage extends StatefulWidget {
 }
 
 class _RAGPageState extends State<RAGPage> {
-  final lm = CactusLM();
-  final rag = CactusRAG();
+  CactusLM? _lm;
+  CactusLM get lm => _lm!;
   final TextEditingController _queryController = TextEditingController();
-  
+
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
-  bool isRAGInitialized = false;
   bool isDownloading = false;
   bool isInitializing = false;
-  bool isInitializingRAG = false;
-  bool isAddingDocuments = false;
   bool isSearching = false;
-  bool isClearingDatabase = false;
-  
   String outputText = 'Ready to start. Select a model and click "Download Model" to begin.';
   List<ChunkSearchResult> searchResults = [];
-  DatabaseStats? dbStats;
   CactusModel? selectedModel;
   String selectedQuantization = 'int4';
   bool usePro = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _queryController.text = '';
-  }
+  String? _corpusDir;
 
   @override
   void dispose() {
-    lm.unload();
-    rag.close();
+    _lm?.unload();
     _queryController.dispose();
     super.dispose();
   }
 
+  Future<void> _setupCorpus() async {
+    final dir = await getApplicationDocumentsDirectory();
+    _corpusDir = '${dir.path}/corpus/test-rag';
+    await Directory(_corpusDir!).create(recursive: true);
+
+    await File('${_corpusDir!}/doc1.txt').writeAsString('The quick brown fox jumps over the lazy dog.');
+    await File('${_corpusDir!}/doc2.txt').writeAsString('Machine learning enables computers to learn from data.');
+    await File('${_corpusDir!}/doc3.txt').writeAsString('The capital of France is Paris.');
+  }
+
   Future<void> downloadModel() async {
+    if (selectedModel == null) return;
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-    
+
     try {
+      await _setupCorpus();
+
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        corpusDir: _corpusDir,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -88,16 +95,17 @@ class _RAGPageState extends State<RAGPage> {
   }
 
   Future<void> initializeModel() async {
+    if (selectedModel == null) return;
     setState(() {
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-    
+
     try {
-      await lm.initializeModel(params: CactusInitParams(model: selectedModel!.slug));
+      await lm.initializeModel();
       setState(() {
         isModelLoaded = true;
-        outputText = 'Model initialized successfully! Click "Initialize RAG" to set up the database.';
+        outputText = 'Model initialized successfully! You can now run RAG queries.';
       });
     } catch (e) {
       setState(() {
@@ -110,96 +118,10 @@ class _RAGPageState extends State<RAGPage> {
     }
   }
 
-  Future<void> initializeRAG() async {
-    setState(() {
-      isInitializingRAG = true;
-      outputText = 'Initializing RAG database...';
-    });
-    
-    try {
-      await rag.initialize();
-      rag.setEmbeddingGenerator((text) async {
-        final result = await lm.generateEmbedding(text: text);
-        return result.embeddings;
-      });
-      rag.setChunking(chunkSize: 500, chunkOverlap: 50);
-      setState(() {
-        isRAGInitialized = true;
-        outputText = 'RAG initialized successfully! Click "Add Docs" to populate the database.';
-      });
-      await getDBStats();
-    } catch (e) {
-      setState(() {
-        outputText = 'Error initializing RAG: $e';
-      });
-    } finally {
-      setState(() {
-        isInitializingRAG = false;
-      });
-    }
-  }
-
-  Future<String> _getPDFtext(String path) async {
-    String text = "";
-    try {
-      text = await ReadPdfText.getPDFtext(path);
-    } on PlatformException {
-      debugPrint('Failed to get PDF text.');
-    }
-    return text;
-  }
-
-  Future<void> addDocument() async {
-    try {
-      setState(() {
-        isAddingDocuments = true;
-      });
-
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        String filePath = result.files.single.path!;
-        String fileName = result.files.single.name;
-
-        String text = await _getPDFtext(filePath);
-
-        debugPrint('PDF text extracted: ${text.length} characters');
-
-        try {
-          final document = await rag.storeDocument(
-            fileName: fileName,
-            filePath: filePath,
-            content: text,
-            fileSize: result.files.single.size,
-          );
-          
-          debugPrint('Document stored in database with ID: ${document.id}');
-        } catch (e) {
-          debugPrint('Failed to store document: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('Error picking and reading PDF: $e');
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to read PDF: $e')),
-        );
-      }
-    } finally {
-      await getDBStats();
-      setState(() {
-        isAddingDocuments = false;
-      });
-    }
-  }
-
   Future<void> searchDocuments() async {
-    if (!isModelLoaded || !isRAGInitialized) {
+    if (!isModelLoaded) {
       setState(() {
-        outputText = 'Please initialize both model and RAG first.';
+        outputText = 'Please download and initialize model first.';
       });
       return;
     }
@@ -218,14 +140,20 @@ class _RAGPageState extends State<RAGPage> {
     });
 
     try {
-      final results = await rag.search(
-        text: _queryController.text,
-        limit: 2
-      );
+      final result = await lm.ragQuery(query: _queryController.text, topK: 3);
 
       setState(() {
-        searchResults = results;
-        outputText = 'Found ${results.length} relevant chunks!';
+        if (result.chunks.isNotEmpty) {
+          searchResults = result.chunks.map((c) => ChunkSearchResult(
+            text: c.content,
+            score: c.score,
+            metadata: {'source': c.source},
+          )).toList();
+          outputText = 'Found ${result.chunks.length} relevant chunks!';
+        } else {
+          searchResults = [];
+          outputText = 'No relevant chunks found.';
+        }
       });
     } catch (e) {
       setState(() {
@@ -235,52 +163,6 @@ class _RAGPageState extends State<RAGPage> {
       setState(() {
         isSearching = false;
       });
-    }
-  }
-
-  Future<void> clearDatabase() async {
-    if (!isRAGInitialized) {
-      setState(() {
-        outputText = 'Please initialize RAG first.';
-      });
-      return;
-    }
-
-    setState(() {
-      isClearingDatabase = true;
-      outputText = 'Clearing database...';
-    });
-
-    try {
-      final allDocs = await rag.getAllDocuments();
-      for (final doc in allDocs) {
-        await rag.deleteDocument(doc.id);
-      }
-      
-      await getDBStats();
-      setState(() {
-        searchResults = [];
-        outputText = 'Database cleared successfully!';
-      });
-    } catch (e) {
-      setState(() {
-        outputText = 'Error clearing database: $e';
-      });
-    } finally {
-      setState(() {
-        isClearingDatabase = false;
-      });
-    }
-  }
-
-  Future<void> getDBStats() async {
-    try {
-      final stats = await rag.getStats();
-      setState(() {
-        dbStats = stats;
-      });
-    } catch (e) {
-      debugPrint('Error getting database stats: $e');
     }
   }
 
@@ -324,7 +206,7 @@ class _RAGPageState extends State<RAGPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "This example demonstrates how to store PDF documents, convert them to searchable embeddings, and perform semantic search to find relevant content based on your queries.",
+                            "This example demonstrates how to use the model's built-in RAG capabilities to search documents.",
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
@@ -339,22 +221,22 @@ class _RAGPageState extends State<RAGPage> {
                       foregroundColor: Colors.white,
                     ),
                     child: isDownloading
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Downloading...'),
-                          ],
-                        )
-                      : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
+                              SizedBox(width: 8),
+                              Text('Downloading...'),
+                            ],
+                          )
+                        : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
@@ -364,130 +246,24 @@ class _RAGPageState extends State<RAGPage> {
                       foregroundColor: Colors.white,
                     ),
                     child: isInitializing
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Initializing...'),
-                          ],
-                        )
-                      : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
+                              SizedBox(width: 8),
+                              Text('Initializing...'),
+                            ],
+                          )
+                        : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: isInitializingRAG ? null : initializeRAG,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: isInitializingRAG
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Initializing RAG...'),
-                          ],
-                        )
-                      : Text(isRAGInitialized ? 'RAG Initialized ✓' : 'Initialize RAG'),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: (isDownloading || isInitializing || isInitializingRAG || isAddingDocuments || !isModelLoaded || !isRAGInitialized) ? null : addDocument,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: isAddingDocuments
-                            ? const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Adding...'),
-                                ],
-                              )
-                            : const Text('Add Docs'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton(
-                          onPressed: (isDownloading || isInitializing || isInitializingRAG || isClearingDatabase || !isRAGInitialized) ? null : clearDatabase,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                          ),
-                          child: isClearingDatabase
-                            ? const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Clearing...'),
-                                ],
-                              )
-                            : const Text('Clear Data'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (dbStats != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Text(
-                        'Database: ${dbStats!.totalDocuments} documents',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 20),
-                  const Text(
-                    'Search Documents:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-                  ),
-                  const SizedBox(height: 8),
                   TextField(
                     controller: _queryController,
                     style: const TextStyle(color: Colors.black),
@@ -509,28 +285,28 @@ class _RAGPageState extends State<RAGPage> {
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: (isDownloading || isInitializing || isInitializingRAG || isSearching || !isModelLoaded || !isRAGInitialized) ? null : searchDocuments,
+                    onPressed: (isDownloading || isInitializing || isSearching || !isModelLoaded) ? null : searchDocuments,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                     ),
                     child: isSearching
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Searching...'),
-                          ],
-                        )
-                      : const Text('Search'),
+                              SizedBox(width: 8),
+                              Text('Searching...'),
+                            ],
+                          )
+                        : const Text('Search'),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -566,21 +342,14 @@ class _RAGPageState extends State<RAGPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        result.chunk.document.target?.fileName ?? 'Unknown Document',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  (result.metadata?['source'] as String?) ?? 'Unknown Source',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  result.chunk.content,
+                                  result.text,
                                   style: const TextStyle(fontSize: 14, color: Colors.black),
                                 ),
                               ],
@@ -588,15 +357,6 @@ class _RAGPageState extends State<RAGPage> {
                           ),
                         );
                       },
-                    ),
-                  ] else if (!isSearching && isRAGInitialized) ...[
-                    const SizedBox(height: 40),
-                    const Center(
-                      child: Text(
-                        'No search results yet. Enter a query and click "Search" to find relevant documents.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
-                      ),
                     ),
                   ],
                 ],

@@ -2,6 +2,8 @@ import 'package:cactus/cactus.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('CactusIndex', () {
     late CactusIndex index;
     const dim = 64;

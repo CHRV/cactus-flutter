@@ -9,7 +9,7 @@ class HybridCompletionPage extends StatefulWidget {
 }
 
 class _HybridCompletionPageState extends State<HybridCompletionPage> {
-  final lm = CactusLM();
+  final lm = CactusLM(options: const CactusModelOptions(quantization: 'int4'));
   final TextEditingController _tokenController = TextEditingController();
   bool isInitializing = false;
   String outputText = 'Ready to start. Enter your Cactus token and click "Run Hybrid Completion".';

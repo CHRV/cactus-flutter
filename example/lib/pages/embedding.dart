@@ -10,7 +10,8 @@ class EmbeddingPage extends StatefulWidget {
 }
 
 class _EmbeddingPageState extends State<EmbeddingPage> {
-  final lm = CactusLM();
+  CactusLM get lm => _lm!;
+  CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
   bool isDownloading = false;
@@ -29,7 +30,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
 
   @override
   void dispose() {
-    lm.unload();
+    _lm?.unload();
     super.dispose();
   }
 
@@ -38,13 +39,17 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-    
+
     try {
+      _lm ??= CactusLM(
+          model: selectedModel!.slug,
+          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        );
       await lm.downloadModel(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
-        downloadProcessCallback: (progress, status, isError) {
+        onProgress: (progress, status, isError) {
           setState(() {
             if (isError) {
               outputText = 'Error: $status';
@@ -80,7 +85,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
     
     try {
       await lm.initializeModel(
-        params: CactusInitParams(model: selectedModel!.slug)
+        model: selectedModel!.slug
       );
       setState(() {
         isModelLoaded = true;
@@ -115,9 +120,9 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
         text: 'This is a sample text for embedding generation'
       );
 
-      if (resp.success) {
+      if (resp.embedding.isNotEmpty) {
         setState(() {
-          lastResponse = "Dimensions: ${resp.dimension.toString()} \nLength: ${resp.embeddings.length} \nEmbeddings: [${resp.embeddings.take(5).join(', ')}...]";
+          lastResponse = "Dimensions: ${resp.embedding.length} \nLength: ${resp.embedding.length} \nEmbeddings: [${resp.embedding.take(5).join(', ')}...]";
           outputText = 'Embedding generation completed successfully!';
         });
       } else {

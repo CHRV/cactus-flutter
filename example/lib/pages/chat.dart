@@ -4,7 +4,7 @@ import '../widgets/model_selector.dart';
 
 class ChatMessageWithMetrics {
   final ChatMessage message;
-  final CactusCompletionResult? metrics;
+  final CactusLMCompleteResult? metrics;
 
   ChatMessageWithMetrics({
     required this.message,
@@ -20,7 +20,7 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final cactusLM = CactusLM();
+  late CactusLM cactusLM;
   final List<ChatMessageWithMetrics> chatMessages = [];
   bool _isLoading = false;
   bool _isSetup = false;
@@ -84,7 +84,7 @@ class _ChatPageState extends State<ChatPage> {
             chatMessages.last.message.role == 'assistant') {
           chatMessages[chatMessages.length - 1] = ChatMessageWithMetrics(
             message: ChatMessage(
-              content: chatMessages.last.message.content + chunk,
+              content: (chatMessages.last.message.content ?? '') + chunk,
               role: 'assistant',
             ),
           );
@@ -94,11 +94,13 @@ class _ChatPageState extends State<ChatPage> {
           ));
         }
       });
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     }
 
     final result = await res.result;
@@ -114,21 +116,19 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  Future<void> _setupCactusLM() async {
+Future<void> _setupCactusLM() async {
     if (selectedModel == null) return;
     setState(() { _isLoading = true; });
-    await cactusLM.downloadModel(
+    cactusLM = CactusLM(
       model: selectedModel!.slug,
-      quantization: selectedQuantization,
-      pro: usePro,
+      options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
     );
-    await cactusLM.initializeModel(params: CactusInitParams(model: selectedModel!.slug, contextSize: 4096));
-    cactusLM.generateCompletionStream(
-      messages: [ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system")],
-      params: CactusCompletionParams(
-        maxTokens: 0
-      )
-    );
+    try {
+      await cactusLM.downloadModel(model: selectedModel!.slug);
+      await cactusLM.initializeModel();
+    } catch (e) {
+      debugPrint('Failed to setup CactusLM: $e');
+    }
     setState(() {
       _isLoading = false;
       _isSetup = true;
@@ -315,7 +315,7 @@ class _MessageBubble extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  message.content,
+                  message.content ?? '',
                   style: const TextStyle(color: Colors.white, height: 1.4),
                 ),
               ),
@@ -347,7 +347,7 @@ class _AssistantMessageBubble extends StatefulWidget {
 class _AssistantMessageBubbleState extends State<_AssistantMessageBubble> {
   bool _showThinking = false;
 
-  String _cleanContent(String content) {
+String _cleanContent(String content) {
     // Remove <|im_end|> and similar end tokens
     String cleaned = content
         .replaceAll(RegExp(r'<\|im_end\|>'), '')
@@ -357,16 +357,18 @@ class _AssistantMessageBubbleState extends State<_AssistantMessageBubble> {
     return cleaned;
   }
 
-  Map<String, String> _parseThinkingContent(String content) {
+  Map<String, String> _parseThinkingContent(String? content) {
+    if (content == null) return {'thinking': '', 'response': ''};
+
     final thinkingMatch = RegExp(
-      r'<think>(.*?)</think>',
+      r'`{3}(.*?)`{3}',
       dotAll: true,
     ).firstMatch(content);
 
     if (thinkingMatch != null) {
       final thinking = thinkingMatch.group(1)?.trim() ?? '';
       final response = content
-          .replaceAll(RegExp(r'<think>.*?</think>', dotAll: true), '')
+          .replaceAll(RegExp(r'`{3}.*?`{3}', dotAll: true), '')
           .trim();
       return {'thinking': thinking, 'response': _cleanContent(response)};
     }
@@ -374,9 +376,9 @@ class _AssistantMessageBubbleState extends State<_AssistantMessageBubble> {
     return {'thinking': '', 'response': _cleanContent(content)};
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
-    final parsedContent = _parseThinkingContent(widget.message.content);
+    final parsedContent = _parseThinkingContent(widget.message.content ?? '');
     final hasThinking = parsedContent['thinking']!.isNotEmpty;
 
     return Container(

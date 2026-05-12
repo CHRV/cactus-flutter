@@ -587,18 +587,32 @@ class CactusIndex {
   }
 
   CactusIndexGetResult get({required List<int> ids}) {
-    final resultJson = bindings.cactusIndexGet(_handle, ids);
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    final List<dynamic> results = data['results'] ?? [];
-
+    // Query each ID individually to gracefully handle deleted/missing documents.
     final documents = <String>[];
     final metadatas = <String>[];
     final embeddings = <List<double>>[];
 
-    for (final r in results) {
-      documents.add(r['document'] ?? '');
-      metadatas.add(r['metadata'] ?? '');
-      embeddings.add((r['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? []);
+    for (final id in ids) {
+      try {
+        final resultJson = bindings.cactusIndexGet(_handle, [id]);
+        final Map<String, dynamic> data = jsonDecode(resultJson);
+        final List<dynamic> results = data['results'] ?? [];
+        if (results.isNotEmpty) {
+          final r = results[0];
+          documents.add(r['document'] ?? '');
+          metadatas.add(r['metadata'] ?? '');
+          embeddings.add((r['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? []);
+        } else {
+          documents.add('');
+          metadatas.add('');
+          embeddings.add([]);
+        }
+      } catch (_) {
+        // Document not found (deleted) — return empty data for this slot.
+        documents.add('');
+        metadatas.add('');
+        embeddings.add([]);
+      }
     }
 
     return CactusIndexGetResult(
