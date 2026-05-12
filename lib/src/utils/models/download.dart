@@ -21,10 +21,8 @@ class DownloadService {
 
   /// Download and extract multiple models/files
   static Future<bool> downloadAndExtractModels(
-    List<DownloadTask> tasks,
-    CactusProgressCallback? downloadProcessCallback,
-    [String? basePath]
-  ) async {
+      List<DownloadTask> tasks, CactusProgressCallback? downloadProcessCallback,
+      [String? basePath]) async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final modelsDir = Directory(basePath ?? '${appDocDir.path}/models');
     if (!await modelsDir.exists()) {
@@ -34,7 +32,7 @@ class DownloadService {
     for (int i = 0; i < tasks.length; i++) {
       final task = tasks[i];
       final progress = i / tasks.length;
-      
+
       downloadProcessCallback?.call(
         progress,
         'Downloading ${task.folder}...',
@@ -54,37 +52,35 @@ class DownloadService {
       }
     }
 
-    downloadProcessCallback?.call(1.0, 'All downloads completed successfully', false);
+    downloadProcessCallback?.call(
+        1.0, 'All downloads completed successfully', false);
     return true;
   }
 
   /// Download and extract a single model/file
-  static Future<bool> _downloadAndExtractModel(
-    String url,
-    String filename,
-    String folder,
-    CactusProgressCallback? downloadProcessCallback,
-    [String? basePath]
-  ) async {
+  static Future<bool> _downloadAndExtractModel(String url, String filename,
+      String folder, CactusProgressCallback? downloadProcessCallback,
+      [String? basePath]) async {
     final appDocDir = await getApplicationDocumentsDirectory();
-    final modelFolderPath = basePath != null 
-        ? '$basePath/$folder' 
+    final modelFolderPath = basePath != null
+        ? '$basePath/$folder'
         : '${appDocDir.path}/models/$folder';
     final modelFolder = Directory(modelFolderPath);
-    
+
     if (await modelFolder.exists()) {
       final files = await modelFolder.list().toList();
       if (files.isNotEmpty) {
-        debugPrint('Model folder already exists at $modelFolderPath with ${files.length} files');
+        debugPrint(
+            'Model folder already exists at $modelFolderPath with ${files.length} files');
         return true;
       }
     }
-    
+
     final modelsDir = Directory(basePath ?? '${appDocDir.path}/models');
     await modelsDir.create(recursive: true);
     final zipFilePath = '${modelsDir.path}/$filename';
     final client = HttpClient();
-    
+
     try {
       debugPrint('Downloading file from $url');
       downloadProcessCallback?.call(null, 'Starting download...', false);
@@ -92,7 +88,8 @@ class DownloadService {
       final response = await request.close();
 
       if (response.statusCode != 200) {
-        downloadProcessCallback?.call(null, 'Failed to download file: ${response.statusCode}', true);
+        downloadProcessCallback?.call(
+            null, 'Failed to download file: ${response.statusCode}', true);
         throw Exception('Failed to download file: ${response.statusCode}');
       }
 
@@ -100,37 +97,42 @@ class DownloadService {
       downloadProcessCallback?.call(null, 'Download started...', false);
       final zipFile = File(zipFilePath);
       final sink = zipFile.openWrite();
-      
+
       int totalBytes = 0;
       await for (final chunk in response) {
         sink.add(chunk);
         totalBytes += chunk.length;
         if (contentLength > 0) {
           final progress = totalBytes / contentLength;
-          downloadProcessCallback?.call(progress, 'Downloaded ${totalBytes ~/ (1024 * 1024)} MB...', false);
+          downloadProcessCallback?.call(progress,
+              'Downloaded ${totalBytes ~/ (1024 * 1024)} MB...', false);
         } else if (totalBytes % (10 * 1024 * 1024) == 0) {
-          downloadProcessCallback?.call(null, 'Downloaded ${totalBytes ~/ (1024 * 1024)} MB...', false);
+          downloadProcessCallback?.call(
+              null, 'Downloaded ${totalBytes ~/ (1024 * 1024)} MB...', false);
         }
       }
       await sink.close();
-      downloadProcessCallback?.call(1.0, 'Download completed, extracting...', false);
+      downloadProcessCallback?.call(
+          1.0, 'Download completed, extracting...', false);
 
       // Check if file is a zip archive by extension
       if (filename.toLowerCase().endsWith('.zip')) {
-        await _extractZipFile(zipFilePath, modelFolderPath, downloadProcessCallback);
+        await _extractZipFile(
+            zipFilePath, modelFolderPath, downloadProcessCallback);
       } else {
         // For non-zip files, just move to the destination folder
         await modelFolder.create(recursive: true);
         final destinationPath = '$modelFolderPath/$filename';
         await zipFile.rename(destinationPath);
       }
-      
+
       // Clean up zip file if it was extracted
       if (filename.toLowerCase().endsWith('.zip')) {
         await zipFile.delete();
       }
-      
-      downloadProcessCallback?.call(1.0, 'Download completed successfully', false);
+
+      downloadProcessCallback?.call(
+          1.0, 'Download completed successfully', false);
       debugPrint('Download completed successfully to $modelFolderPath');
       return true;
     } catch (e) {
@@ -157,21 +159,18 @@ class DownloadService {
   }
 
   /// Extract a zip file to the specified directory
-  static Future<void> _extractZipFile(
-    String zipFilePath, 
-    String extractToPath, 
-    CactusProgressCallback? downloadProcessCallback
-  ) async {
+  static Future<void> _extractZipFile(String zipFilePath, String extractToPath,
+      CactusProgressCallback? downloadProcessCallback) async {
     final modelFolder = Directory(extractToPath);
     await modelFolder.create(recursive: true);
     downloadProcessCallback?.call(null, 'Extracting files...', false);
-    
+
     final inputStream = InputFileStream(zipFilePath);
-    
+
     try {
       final archive = ZipDecoder().decodeStream(inputStream);
       final symbolicLinks = <ArchiveFile>[];
-      
+
       // Find the root folder name in the archive
       // Only set rootFolderName if ALL files share a common directory prefix.
       // Archives with files at the root level (no common prefix) must not strip anything.
@@ -193,29 +192,30 @@ class DownloadService {
           }
         }
       }
-      
+
       debugPrint('Root folder in archive: $rootFolderName');
-      
+
       for (final file in archive) {
         if (file.isSymbolicLink) {
           symbolicLinks.add(file);
           continue;
         }
-        
+
         // Skip the root folder and extract contents directly to extractToPath
         String relativePath = file.name;
-        if (rootFolderName != null && relativePath.startsWith('$rootFolderName/')) {
+        if (rootFolderName != null &&
+            relativePath.startsWith('$rootFolderName/')) {
           relativePath = relativePath.substring(rootFolderName.length + 1);
         }
-        
+
         // Skip empty paths (root folder itself)
         if (relativePath.isEmpty) continue;
-        
+
         if (file.isFile) {
           final extractedFilePath = '$extractToPath/$relativePath';
-          
+
           final extractedFileParent = File(extractedFilePath).parent;
-          await extractedFileParent.create(recursive: true);            
+          await extractedFileParent.create(recursive: true);
           final outputStream = OutputFileStream(extractedFilePath);
           file.writeContent(outputStream);
           outputStream.closeSync();
@@ -224,14 +224,15 @@ class DownloadService {
           await Directory(dirPath).create(recursive: true);
         }
       }
-      
+
       // Handle symbolic links
       for (final file in symbolicLinks) {
         String relativePath = file.name;
-        if (rootFolderName != null && relativePath.startsWith('$rootFolderName/')) {
+        if (rootFolderName != null &&
+            relativePath.startsWith('$rootFolderName/')) {
           relativePath = relativePath.substring(rootFolderName.length + 1);
         }
-        
+
         if (relativePath.isNotEmpty) {
           final linkPath = '$extractToPath/$relativePath';
           final link = Link(linkPath);

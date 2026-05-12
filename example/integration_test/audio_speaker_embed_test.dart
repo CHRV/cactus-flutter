@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _timeout = Timeout(Duration(minutes: 5));
-const _spkModel = 'wespeaker-voxceleb-resnet34-LM';
+const _spkModel = 'wespeaker-voxceleb-resnet34-lm';
 
 Future<Float32List> _loadPcmFromAsset() async {
   final data = await rootBundle.load('assets/test_audio.wav');

@@ -20,7 +20,8 @@ Future<Map<String, dynamic>> getDeviceMetadata() async {
       };
     } else if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
-      debugPrint("model name: ${iosInfo.modelName}, id: ${iosInfo.identifierForVendor}");
+      debugPrint(
+          "model name: ${iosInfo.modelName}, id: ${iosInfo.identifierForVendor}");
       deviceData = {
         'model': iosInfo.modelName,
         'os': 'iOS',

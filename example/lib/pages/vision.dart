@@ -22,7 +22,8 @@ class _VisionPageState extends State<VisionPage> {
   bool isInitializing = false;
   bool isGenerating = false;
   bool isStreaming = false;
-  String outputText = 'Ready to start. Select a vision model and pick an image.';
+  String outputText =
+      'Ready to start. Select a vision model and pick an image.';
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
@@ -73,7 +74,8 @@ class _VisionPageState extends State<VisionPage> {
     if (path != null) {
       setState(() {
         selectedImagePath = path;
-        outputText = 'Image selected! Click "Download Model" if needed, then "Analyze Image".';
+        outputText =
+            'Image selected! Click "Download Model" if needed, then "Analyze Image".';
       });
     }
   }
@@ -93,10 +95,11 @@ class _VisionPageState extends State<VisionPage> {
 
     try {
       _lm = CactusLM(
-          model: selectedModel!.slug,
-          options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
-        );
-        await lm.download(
+        model: selectedModel!.slug,
+        options:
+            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
+      await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -115,7 +118,8 @@ class _VisionPageState extends State<VisionPage> {
       );
       setState(() {
         isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText =
+            'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
       setState(() {
@@ -142,12 +146,11 @@ class _VisionPageState extends State<VisionPage> {
     });
 
     try {
-      await lm.initializeModel(
-        model: selectedModel!.slug
-      );
+      await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText = 'Model initialized successfully! Pick an image to analyze.';
+        outputText =
+            'Model initialized successfully! Pick an image to analyze.';
       });
     } catch (e) {
       setState(() {
@@ -186,19 +189,16 @@ class _VisionPageState extends State<VisionPage> {
 
     try {
       final streamedResult = await lm.generateCompletionStream(
-        params: CactusCompletionParams(
-          maxTokens: 200
-        ),
+        params: CactusCompletionParams(maxTokens: 200),
         messages: [
           ChatMessage(
-            content: 'You are a helpful AI assistant that can analyze images.',
-            role: "system"
-          ),
+              content:
+                  'You are a helpful AI assistant that can analyze images.',
+              role: "system"),
           ChatMessage(
-            content: 'Describe this image',
-            role: "user",
-            images: [selectedImagePath!]
-          )
+              content: 'Describe this image',
+              role: "user",
+              images: [selectedImagePath!])
         ],
       );
 
@@ -270,55 +270,65 @@ class _VisionPageState extends State<VisionPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: isDownloading || selectedModel == null ? null : download,
+                        onPressed: isDownloading || selectedModel == null
+                            ? null
+                            : download,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
                         ),
                         child: isDownloading
-                          ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 8),
-                                Text('Downloading...'),
-                              ],
-                            )
-                          : Text(isModelDownloaded ? 'Downloaded ✓' : 'Download Model'),
+                                  SizedBox(width: 8),
+                                  Text('Downloading...'),
+                                ],
+                              )
+                            : Text(isModelDownloaded
+                                ? 'Downloaded ✓'
+                                : 'Download Model'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: isInitializing || selectedModel == null ? null : initializeModel,
+                        onPressed: isInitializing || selectedModel == null
+                            ? null
+                            : initializeModel,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
                         ),
                         child: isInitializing
-                          ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 8),
-                                Text('Initializing...'),
-                              ],
-                            )
-                          : Text(isModelLoaded ? 'Initialized ✓' : 'Initialize Model'),
+                                  SizedBox(width: 8),
+                                  Text('Initializing...'),
+                                ],
+                              )
+                            : Text(isModelLoaded
+                                ? 'Initialized ✓'
+                                : 'Initialize Model'),
                       ),
                     ),
                   ],
@@ -333,36 +343,43 @@ class _VisionPageState extends State<VisionPage> {
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
                         ),
-                        child: Text(selectedImagePath == null ? 'Pick Image' : 'Change Image'),
+                        child: Text(selectedImagePath == null
+                            ? 'Pick Image'
+                            : 'Change Image'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded || selectedImagePath == null)
-                          ? null
-                          : analyzeImage,
+                        onPressed: (isDownloading ||
+                                isInitializing ||
+                                isGenerating ||
+                                !isModelLoaded ||
+                                selectedImagePath == null)
+                            ? null
+                            : analyzeImage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
                         ),
                         child: isGenerating && !isStreaming
-                          ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 8),
-                                Text('Processing...'),
-                              ],
-                            )
-                          : const Text('Analyze Image'),
+                                  SizedBox(width: 8),
+                                  Text('Processing...'),
+                                ],
+                              )
+                            : const Text('Analyze Image'),
                       ),
                     ),
                   ],
@@ -397,20 +414,27 @@ class _VisionPageState extends State<VisionPage> {
                       children: [
                         const Text(
                           'Output:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black),
                         ),
                         const SizedBox(height: 8),
-                        Text(outputText, style: const TextStyle(color: Colors.black)),
+                        Text(outputText,
+                            style: const TextStyle(color: Colors.black)),
                         if (lastResponse != null) ...[
                           const SizedBox(height: 16),
                           const Text(
                             'Response:',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black),
                           ),
                           const SizedBox(height: 4),
                           Expanded(
                             child: SingleChildScrollView(
-                              child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                              child: Text(lastResponse!,
+                                  style: const TextStyle(color: Colors.black)),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -419,20 +443,35 @@ class _VisionPageState extends State<VisionPage> {
                             children: [
                               Column(
                                 children: [
-                                  const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                  Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
+                                  const Text('Model',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(selectedModel?.slug ?? '',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
                                 ],
                               ),
                               Column(
                                 children: [
-                                  const Text('TTFT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                  Text('${lastTTFT.toStringAsFixed(2)} ms', style: const TextStyle(color: Colors.black)),
+                                  const Text('TTFT',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text('${lastTTFT.toStringAsFixed(2)} ms',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
                                 ],
                               ),
                               Column(
                                 children: [
-                                  const Text('TPS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                  Text(lastTPS.toStringAsFixed(2), style: const TextStyle(color: Colors.black)),
+                                  const Text('TPS',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(lastTPS.toStringAsFixed(2),
+                                      style:
+                                          const TextStyle(color: Colors.black)),
                                 ],
                               ),
                             ],
@@ -457,8 +496,12 @@ class _VisionPageState extends State<VisionPage> {
                 isModelDownloaded = false;
                 isModelLoaded = false;
               }),
-              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
-              onProChanged: (p) => setState(() { usePro = p; }),
+              onQuantizationChanged: (q) => setState(() {
+                selectedQuantization = q;
+              }),
+              onProChanged: (p) => setState(() {
+                usePro = p;
+              }),
             ),
           ),
         ],

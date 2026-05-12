@@ -3,7 +3,8 @@ import 'dart:async';
 enum CompletionMode { local, cloud, hybrid }
 
 typedef CactusTokenCallback = void Function(String token);
-typedef CactusProgressCallback = void Function(double? progress, String statusMessage, bool isError);
+typedef CactusProgressCallback = void Function(
+    double? progress, String statusMessage, bool isError);
 
 typedef ChatMessage = CactusLMMessage;
 typedef CactusCompletionParams = CactusLMCompleteOptions;
@@ -32,10 +33,10 @@ class CactusLMMessage {
   });
 
   Map<String, dynamic> toJson() => {
-    'role': role,
-    if (content != null) 'content': content,
-    if (images.isNotEmpty) 'images': images,
-  };
+        'role': role,
+        if (content != null) 'content': content,
+        if (images.isNotEmpty) 'images': images,
+      };
 }
 
 class CactusLMTool {
@@ -50,10 +51,10 @@ class CactusLMTool {
   });
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'description': description,
-    'parameters': parameters,
-  };
+        'name': name,
+        'description': description,
+        'parameters': parameters,
+      };
 }
 
 class FunctionCall {
@@ -93,19 +94,21 @@ class CactusLMCompleteOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (temperature != null) 'temperature': temperature,
-    if (topK != null) 'top_k': topK,
-    if (topP != null) 'top_p': topP,
-    'max_tokens': maxTokens,
-    'stop_sequences': stopSequences,
-    if (forceTools != null) 'force_tools': forceTools,
-    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
-    if (confidenceThreshold != null) 'confidence_threshold': confidenceThreshold,
-    if (includeStopSequences != null) 'include_stop_sequences': includeStopSequences,
-    if (enableThinking != null) 'enable_thinking': enableThinking,
-    if (completionMode != null) 'completion_mode': completionMode!.name,
-    if (cactusToken != null) 'cactus_token': cactusToken,
-  };
+        if (temperature != null) 'temperature': temperature,
+        if (topK != null) 'top_k': topK,
+        if (topP != null) 'top_p': topP,
+        'max_tokens': maxTokens,
+        'stop_sequences': stopSequences,
+        if (forceTools != null) 'force_tools': forceTools,
+        if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+        if (confidenceThreshold != null)
+          'confidence_threshold': confidenceThreshold,
+        if (includeStopSequences != null)
+          'include_stop_sequences': includeStopSequences,
+        if (enableThinking != null) 'enable_thinking': enableThinking,
+        if (completionMode != null) 'completion_mode': completionMode!.name,
+        if (cactusToken != null) 'cactus_token': cactusToken,
+      };
 }
 
 class CactusLMCompleteResult {
@@ -202,7 +205,8 @@ class RagQueryChunk {
   final String source;
   final String content;
 
-  RagQueryChunk({required this.score, required this.source, required this.content});
+  RagQueryChunk(
+      {required this.score, required this.source, required this.content});
 }
 
 class CactusLMRagQueryResult {
@@ -238,17 +242,20 @@ class CactusSTTTranscribeOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (temperature != null) 'temperature': temperature,
-    if (topK != null) 'top_k': topK,
-    if (topP != null) 'top_p': topP,
-    'max_tokens': maxTokens,
-    'stop_sequences': stopSequences,
-    if (useVad != null) 'use_vad': useVad,
-    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
-    if (confidenceThreshold != null) 'confidence_threshold': confidenceThreshold,
-    if (cloudHandoffThreshold != null) 'cloud_handoff_threshold': cloudHandoffThreshold,
-    if (includeStopSequences != null) 'include_stop_sequences': includeStopSequences,
-  };
+        if (temperature != null) 'temperature': temperature,
+        if (topK != null) 'top_k': topK,
+        if (topP != null) 'top_p': topP,
+        'max_tokens': maxTokens,
+        'stop_sequences': stopSequences,
+        if (useVad != null) 'use_vad': useVad,
+        if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+        if (confidenceThreshold != null)
+          'confidence_threshold': confidenceThreshold,
+        if (cloudHandoffThreshold != null)
+          'cloud_handoff_threshold': cloudHandoffThreshold,
+        if (includeStopSequences != null)
+          'include_stop_sequences': includeStopSequences,
+      };
 }
 
 class CactusSTTTranscribeResult {
@@ -303,11 +310,12 @@ class CactusSTTStreamTranscribeStartOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (confirmationThreshold != null) 'confirmation_threshold': confirmationThreshold,
-    if (minChunkSize != null) 'min_chunk_size': minChunkSize,
-    if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
-    if (language != null) 'language': language,
-  };
+        if (confirmationThreshold != null)
+          'confirmation_threshold': confirmationThreshold,
+        if (minChunkSize != null) 'min_chunk_size': minChunkSize,
+        if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
+        if (language != null) 'language': language,
+      };
 }
 
 class CactusSTTStreamTranscribeProcessResult {
@@ -348,7 +356,8 @@ class CactusSTTStreamTranscribeStopResult {
   final bool success;
   final String confirmed;
 
-  CactusSTTStreamTranscribeStopResult({required this.success, required this.confirmed});
+  CactusSTTStreamTranscribeStopResult(
+      {required this.success, required this.confirmed});
 }
 
 class CactusSTTDetectLanguageResult {
@@ -364,8 +373,8 @@ class CactusSTTDetectLanguageOptions {
   const CactusSTTDetectLanguageOptions({this.useVad});
 
   Map<String, dynamic> toJson() => {
-    if (useVad != null) 'use_vad': useVad,
-  };
+        if (useVad != null) 'use_vad': useVad,
+      };
 }
 
 class CactusAudioVADOptions {
@@ -394,17 +403,22 @@ class CactusAudioVADOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (threshold != null) 'threshold': threshold,
-    if (negThreshold != null) 'neg_threshold': negThreshold,
-    if (minSpeechDurationMs != null) 'min_speech_duration_ms': minSpeechDurationMs,
-    if (maxSpeechDurationS != null) 'max_speech_duration_s': maxSpeechDurationS,
-    if (minSilenceDurationMs != null) 'min_silence_duration_ms': minSilenceDurationMs,
-    if (speechPadMs != null) 'speech_pad_ms': speechPadMs,
-    if (windowSizeSamples != null) 'window_size_samples': windowSizeSamples,
-    if (samplingRate != null) 'sampling_rate': samplingRate,
-    if (minSilenceAtMaxSpeech != null) 'min_silence_at_max_speech': minSilenceAtMaxSpeech,
-    if (useMaxPossSilAtMaxSpeech != null) 'use_max_poss_sil_at_max_speech': useMaxPossSilAtMaxSpeech,
-  };
+        if (threshold != null) 'threshold': threshold,
+        if (negThreshold != null) 'neg_threshold': negThreshold,
+        if (minSpeechDurationMs != null)
+          'min_speech_duration_ms': minSpeechDurationMs,
+        if (maxSpeechDurationS != null)
+          'max_speech_duration_s': maxSpeechDurationS,
+        if (minSilenceDurationMs != null)
+          'min_silence_duration_ms': minSilenceDurationMs,
+        if (speechPadMs != null) 'speech_pad_ms': speechPadMs,
+        if (windowSizeSamples != null) 'window_size_samples': windowSizeSamples,
+        if (samplingRate != null) 'sampling_rate': samplingRate,
+        if (minSilenceAtMaxSpeech != null)
+          'min_silence_at_max_speech': minSilenceAtMaxSpeech,
+        if (useMaxPossSilAtMaxSpeech != null)
+          'use_max_poss_sil_at_max_speech': useMaxPossSilAtMaxSpeech,
+      };
 }
 
 class CactusAudioVADSegment {
@@ -419,7 +433,10 @@ class CactusAudioVADResult {
   final double totalTime;
   final double ramUsage;
 
-  CactusAudioVADResult({this.segments = const [], required this.totalTime, required this.ramUsage});
+  CactusAudioVADResult(
+      {this.segments = const [],
+      required this.totalTime,
+      required this.ramUsage});
 }
 
 class CactusAudioDiarizeOptions {
@@ -438,12 +455,12 @@ class CactusAudioDiarizeOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (stepMs != null) 'step_ms': stepMs,
-    if (threshold != null) 'threshold': threshold,
-    if (numSpeakers != null) 'num_speakers': numSpeakers,
-    if (minSpeakers != null) 'min_speakers': minSpeakers,
-    if (maxSpeakers != null) 'max_speakers': maxSpeakers,
-  };
+        if (stepMs != null) 'step_ms': stepMs,
+        if (threshold != null) 'threshold': threshold,
+        if (numSpeakers != null) 'num_speakers': numSpeakers,
+        if (minSpeakers != null) 'min_speakers': minSpeakers,
+        if (maxSpeakers != null) 'max_speakers': maxSpeakers,
+      };
 }
 
 class CactusAudioDiarizeResult {
@@ -478,11 +495,11 @@ class CactusAudioEmbedSpeakerOptions {
   });
 
   Map<String, dynamic> toJson() => {
-    if (stepMs != null) 'step_ms': stepMs,
-    if (threshold != null) 'threshold': threshold,
-    if (maskWeights != null) 'mask_weights': maskWeights,
-    if (maskNumFrames != null) 'mask_num_frames': maskNumFrames,
-  };
+        if (stepMs != null) 'step_ms': stepMs,
+        if (threshold != null) 'threshold': threshold,
+        if (maskWeights != null) 'mask_weights': maskWeights,
+        if (maskNumFrames != null) 'mask_num_frames': maskNumFrames,
+      };
 }
 
 class CactusAudioEmbedSpeakerResult {
@@ -520,9 +537,9 @@ class CactusIndexQueryOptions {
   const CactusIndexQueryOptions({this.topK, this.scoreThreshold});
 
   Map<String, dynamic> toJson() => {
-    if (topK != null) 'top_k': topK,
-    if (scoreThreshold != null) 'score_threshold': scoreThreshold,
-  };
+        if (topK != null) 'top_k': topK,
+        if (scoreThreshold != null) 'score_threshold': scoreThreshold,
+      };
 }
 
 class CactusIndexQueryResult {
@@ -581,10 +598,10 @@ class CactusQuantizationInfo {
   }
 
   Map<String, dynamic> toJson() => {
-    'size_mb': sizeMb,
-    'url': url,
-    if (pro != null) 'pro': pro!.toJson(),
-  };
+        'size_mb': sizeMb,
+        'url': url,
+        if (pro != null) 'pro': pro!.toJson(),
+      };
 }
 
 class CactusModel {
@@ -638,13 +655,13 @@ class CactusModel {
   }
 
   Map<String, dynamic> toJson() => {
-    'slug': slug,
-    'name': name,
-    'capabilities': capabilities,
-    'quantization': quantization.map((k, v) => MapEntry(k, v.toJson())),
-    'is_downloaded': isDownloaded,
-    if (_createdAt != null) 'created_at': _createdAt!.toIso8601String(),
-  };
+        'slug': slug,
+        'name': name,
+        'capabilities': capabilities,
+        'quantization': quantization.map((k, v) => MapEntry(k, v.toJson())),
+        'is_downloaded': isDownloaded,
+        if (_createdAt != null) 'created_at': _createdAt!.toIso8601String(),
+      };
 }
 
 class ChunkSearchResult {

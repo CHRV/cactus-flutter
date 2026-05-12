@@ -25,7 +25,8 @@ class ModelCache {
       if (jsonString == null || jsonString.isEmpty) {
         return null;
       }
-      final Map<String, dynamic> json = jsonDecode(jsonString) as Map<String, dynamic>;
+      final Map<String, dynamic> json =
+          jsonDecode(jsonString) as Map<String, dynamic>;
       return CactusModel.fromJson(json);
     } catch (e) {
       debugPrint('Error loading model from cache: $e');

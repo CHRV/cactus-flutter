@@ -6,7 +6,8 @@ class StreamingCompletionPage extends StatefulWidget {
   const StreamingCompletionPage({super.key});
 
   @override
-  State<StreamingCompletionPage> createState() => _StreamingCompletionPageState();
+  State<StreamingCompletionPage> createState() =>
+      _StreamingCompletionPageState();
 }
 
 class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
@@ -46,7 +47,8 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     try {
       _lm ??= CactusLM(
         model: selectedModel!.slug,
-        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options:
+            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -67,7 +69,8 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
       );
       setState(() {
         isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText =
+            'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
       setState(() {
@@ -85,14 +88,13 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-    
+
     try {
-      await lm.initializeModel(
-        model: selectedModel!.slug
-      );
+      await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText = 'Model initialized successfully! Ready to generate completions.';
+        outputText =
+            'Model initialized successfully! Ready to generate completions.';
       });
     } catch (e) {
       setState(() {
@@ -112,7 +114,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
       });
       return;
     }
-    
+
     setState(() {
       isGenerating = true;
       isStreaming = false;
@@ -121,11 +123,14 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
       lastTPS = 0;
       lastTTFT = 0;
     });
-    
+
     try {
       final streamedResult = await lm.generateCompletionStream(
         messages: [
-          ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system"),
+          ChatMessage(
+              content:
+                  'You are Cactus, a very capable AI assistant running offline on a smartphone',
+              role: "system"),
           ChatMessage(content: 'Hi, how are you?', role: "user")
         ],
       );
@@ -141,7 +146,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
           lastResponse = (lastResponse ?? '') + chunk;
         });
       }
-      
+
       final resp = await streamedResult.result;
       if (resp.success) {
         setState(() {
@@ -199,144 +204,178 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
                 const SizedBox(height: 10),
                 // Buttons section
                 ElevatedButton(
-              onPressed: isDownloading ? null : download,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isDownloading
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Downloading...'),
-                    ],
-                  )
-                : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: isInitializing ? null : initializeModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isInitializing
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Initializing...'),
-                    ],
-                  )
-                : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded) ? null : generateStreamCompletion,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isGenerating && !isStreaming 
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Processing...'),
-                    ],
-                  )
-                : const Text('Run Streaming Example'),
-            ),
-
-            const SizedBox(height: 20),
-            
-            // Output section
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.white,
+                  onPressed: isDownloading ? null : download,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isDownloading
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Downloading...'),
+                          ],
+                        )
+                      : Text(isModelDownloaded
+                          ? 'Model Downloaded ✓'
+                          : 'Download Model'),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Output:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: isInitializing ? null : initializeModel,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isInitializing
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Initializing...'),
+                          ],
+                        )
+                      : Text(isModelLoaded
+                          ? 'Model Initialized ✓'
+                          : 'Initialize Model'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: (isDownloading ||
+                          isInitializing ||
+                          isGenerating ||
+                          !isModelLoaded)
+                      ? null
+                      : generateStreamCompletion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isGenerating && !isStreaming
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Processing...'),
+                          ],
+                        )
+                      : const Text('Run Streaming Example'),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Output section
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 8),
-                    Text(outputText, style: const TextStyle(color: Colors.black)),
-                    if (lastResponse != null) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Response:',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Output:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Column(
-                            children: [
-                              const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
-                            ],
+                        const SizedBox(height: 8),
+                        Text(outputText,
+                            style: const TextStyle(color: Colors.black)),
+                        if (lastResponse != null) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Response:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black),
                           ),
-                          Column(
-                            children: [
-                              const Text('TTFT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text('${lastTTFT.toStringAsFixed(2)} ms', style: const TextStyle(color: Colors.black)),
-                            ],
+                          const SizedBox(height: 4),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Text(lastResponse!,
+                                  style: const TextStyle(color: Colors.black)),
+                            ),
                           ),
-                          Column(
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              const Text('TPS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(lastTPS.toStringAsFixed(2), style: const TextStyle(color: Colors.black)),
+                              Column(
+                                children: [
+                                  const Text('Model',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(selectedModel?.slug ?? '',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Text('TTFT',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text('${lastTTFT.toStringAsFixed(2)} ms',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Text('TPS',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(lastTPS.toStringAsFixed(2),
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
                             ],
                           ),
                         ],
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
           Positioned(
             top: 16,
             left: 16,
@@ -344,9 +383,15 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
             child: ModelSelectorWidget(
               initialModel: 'qwen3-0.6b',
               capabilityFilter: 'completion',
-              onModelSelected: (model) => setState(() { selectedModel = model; }),
-              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
-              onProChanged: (p) => setState(() { usePro = p; }),
+              onModelSelected: (model) => setState(() {
+                selectedModel = model;
+              }),
+              onQuantizationChanged: (q) => setState(() {
+                selectedQuantization = q;
+              }),
+              onProChanged: (p) => setState(() {
+                usePro = p;
+              }),
             ),
           ),
         ],

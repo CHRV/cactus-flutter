@@ -62,8 +62,8 @@ class CactusLM {
     final effectivePro = pro ?? options.pro;
 
     final modelName = effectivePro
-      ? '$effectiveModel-$effectiveQuant-pro'
-      : '$effectiveModel-$effectiveQuant';
+        ? '$effectiveModel-$effectiveQuant-pro'
+        : '$effectiveModel-$effectiveQuant';
 
     if (_isModelPath(effectiveModel)) return;
     if (_isDownloading) throw CactusException('Already downloading');
@@ -116,8 +116,7 @@ class CactusLM {
       modelPath = model.replaceFirst('file://', '');
     } else {
       if (!await DownloadService.modelExists(getModelName())) {
-        throw CactusException(
-            'Model not downloaded. Call download() first.');
+        throw CactusException('Model not downloaded. Call download() first.');
       }
       modelPath = await _resolveModelPath();
     }
@@ -134,7 +133,8 @@ class CactusLM {
     _isInitialized = true;
   }
 
-  Future<void> initializeModel({String? model, CactusInitParams? params}) => init();
+  Future<void> initializeModel({String? model, CactusInitParams? params}) =>
+      init();
 
   void destroy() {
     _context?.destroy();
@@ -164,9 +164,11 @@ class CactusLM {
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
-        final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
+        final messagesJson =
+            jsonEncode(messages.map((m) => m.toJson()).toList());
         final optionsJson = jsonEncode(effectiveOptions.toJson());
-        final toolsJson = jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
+        final toolsJson =
+            jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
         return CactusContext.completeAt(
           handleAddress: _context!.handle.address,
@@ -188,7 +190,8 @@ class CactusLM {
     List<CactusLMTool>? tools,
     CactusTokenCallback? onToken,
     List<int>? audio,
-  }) => complete(
+  }) =>
+      complete(
         messages: messages,
         options: params,
         tools: tools,
@@ -238,9 +241,11 @@ class CactusLM {
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
-        final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
+        final messagesJson =
+            jsonEncode(messages.map((m) => m.toJson()).toList());
         final optionsJson = jsonEncode(effectiveOptions.toJson());
-        final toolsJson = jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
+        final toolsJson =
+            jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
         return CactusContext.prefillAt(
           handleAddress: _context!.handle.address,
@@ -305,7 +310,8 @@ class CactusLM {
   Future<CactusLMEmbedResult> generateEmbedding({
     required String text,
     bool normalize = false,
-  }) => embed(text: text, normalize: normalize);
+  }) =>
+      embed(text: text, normalize: normalize);
 
   Future<CactusLMImageEmbedResult> imageEmbed({
     required String imagePath,
@@ -357,8 +363,7 @@ class CactusLM {
   String getModelName() =>
       '$model-${options.quantization}${options.pro ? '-pro' : ''}';
 
-  bool _isModelPath(String m) =>
-      m.startsWith('/') || m.startsWith('file://');
+  bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
 }
 
 CactusLMTokenizeResult _tokenizeInIsolate(Map<String, dynamic> params) {

@@ -1,4 +1,3 @@
-
 import 'package:cactus/cactus.dart';
 
 import 'package:flutter/material.dart';
@@ -69,7 +68,7 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
-  
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -144,7 +143,8 @@ class _MyHomePageState extends State<MyHomePage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Configuration reset to defaults')),
+                  const SnackBar(
+                      content: Text('Configuration reset to defaults')),
                 );
               }
             },
@@ -195,7 +195,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const BasicCompletionPage()),
+                MaterialPageRoute(
+                    builder: (context) => const BasicCompletionPage()),
               );
             },
           ),
@@ -204,7 +205,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const StreamingCompletionPage()),
+                MaterialPageRoute(
+                    builder: (context) => const StreamingCompletionPage()),
               );
             },
           ),
@@ -213,7 +215,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FunctionCallingPage()),
+                MaterialPageRoute(
+                    builder: (context) => const FunctionCallingPage()),
               );
             },
           ),
@@ -222,7 +225,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const HybridCompletionPage()),
+                MaterialPageRoute(
+                    builder: (context) => const HybridCompletionPage()),
               );
             },
           ),
@@ -231,7 +235,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FetchModelsPage()),
+                MaterialPageRoute(
+                    builder: (context) => const FetchModelsPage()),
               );
             },
           ),
@@ -285,7 +290,8 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ContextTestPage()),
+                MaterialPageRoute(
+                    builder: (context) => const ContextTestPage()),
               );
             },
           ),

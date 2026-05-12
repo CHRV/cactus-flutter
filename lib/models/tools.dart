@@ -55,7 +55,8 @@ class ToolParametersSchema {
     return ToolParametersSchema(
       type: json['type'] as String? ?? 'object',
       properties: properties.map(
-        (k, v) => MapEntry(k, ToolParameter.fromJson(v as Map<String, dynamic>)),
+        (k, v) =>
+            MapEntry(k, ToolParameter.fromJson(v as Map<String, dynamic>)),
       ),
     );
   }

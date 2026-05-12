@@ -12,7 +12,8 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
   final lm = CactusLM(options: const CactusModelOptions(quantization: 'int4'));
   final TextEditingController _tokenController = TextEditingController();
   bool isInitializing = false;
-  String outputText = 'Ready to start. Enter your Cactus token and click "Run Hybrid Completion".';
+  String outputText =
+      'Ready to start. Enter your Cactus token and click "Run Hybrid Completion".';
   String? lastResponse;
 
   @override
@@ -34,15 +35,17 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
       });
       return;
     }
-    
+
     setState(() {
       isInitializing = true;
       outputText = 'Generating response...';
     });
-    
+
     try {
       final result = await lm.generateCompletion(
-        messages: [ChatMessage(content: "What's the weather in New York?", role: "user")],
+        messages: [
+          ChatMessage(content: "What's the weather in New York?", role: "user")
+        ],
         params: CactusCompletionParams(
           completionMode: CompletionMode.hybrid,
           cactusToken: _tokenController.text,
@@ -96,8 +99,8 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
                     Text(
                       "Cloud Fallback Demo",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -109,7 +112,7 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _tokenController,
               style: const TextStyle(color: Colors.black),
@@ -137,26 +140,27 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
                 foregroundColor: Colors.white,
               ),
               child: isInitializing
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Processing...'),
-                    ],
-                  )
-                : const Text('Run Hybrid Completion Example'),
+                        SizedBox(width: 8),
+                        Text('Processing...'),
+                      ],
+                    )
+                  : const Text('Run Hybrid Completion Example'),
             ),
 
             const SizedBox(height: 20),
-            
+
             // Output section
             Expanded(
               child: Container(
@@ -171,21 +175,26 @@ class _HybridCompletionPageState extends State<HybridCompletionPage> {
                   children: [
                     const Text(
                       'Output:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black),
                     ),
                     const SizedBox(height: 8),
-                    
-                    Text(outputText, style: const TextStyle(color: Colors.black)),
+                    Text(outputText,
+                        style: const TextStyle(color: Colors.black)),
                     if (lastResponse != null) ...[
                       const SizedBox(height: 16),
                       const Text(
                         'Response:',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.black),
                       ),
                       const SizedBox(height: 4),
                       Expanded(
                         child: SingleChildScrollView(
-                          child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                          child: Text(lastResponse!,
+                              style: const TextStyle(color: Colors.black)),
                         ),
                       ),
                     ],

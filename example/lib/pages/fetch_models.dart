@@ -31,7 +31,8 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
       final models = await lm.getModels();
       setState(() {
         availableModels = models;
-        outputText = 'Found ${models.length} available models. Browse the list below.';
+        outputText =
+            'Found ${models.length} available models. Browse the list below.';
       });
     } catch (e) {
       setState(() {
@@ -47,18 +48,27 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
 
   Color _capabilityColor(String cap) {
     switch (cap) {
-      case 'tools': return Colors.purple;
-      case 'vision': return Colors.blue;
-      case 'embed': return Colors.teal;
-      case 'embedding': return Colors.teal;
-      case 'audio': return Colors.orange;
-      case 'completion': return Colors.green;
-      case 'chat': return Colors.green;
-      default: return Colors.grey;
+      case 'tools':
+        return Colors.purple;
+      case 'vision':
+        return Colors.blue;
+      case 'embed':
+        return Colors.teal;
+      case 'embedding':
+        return Colors.teal;
+      case 'audio':
+        return Colors.orange;
+      case 'completion':
+        return Colors.green;
+      case 'chat':
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
-  Future<void> _downloadModel(CactusModel model, String quantization, bool pro) async {
+  Future<void> _downloadModel(
+      CactusModel model, String quantization, bool pro) async {
     try {
       await lm.download(
         model: model.slug,
@@ -101,11 +111,12 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                     Text(
                       model.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: model.isDownloaded
                             ? Colors.green.shade100
@@ -115,10 +126,10 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                       child: Text(
                         model.isDownloaded ? 'Downloaded' : 'Available',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: model.isDownloaded
-                              ? Colors.green.shade800
-                              : Colors.grey.shade700,
-                        ),
+                              color: model.isDownloaded
+                                  ? Colors.green.shade800
+                                  : Colors.grey.shade700,
+                            ),
                       ),
                     ),
                   ],
@@ -127,23 +138,28 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                 Text(
                   'Slug: ${model.slug}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
                 if (model.capabilities.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: model.capabilities.map((cap) => Chip(
-                      label: Text(cap),
-                      labelStyle: const TextStyle(color: Colors.white, fontSize: 11),
-                      backgroundColor: _capabilityColor(cap),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                    )).toList(),
+                    children: model.capabilities
+                        .map((cap) => Chip(
+                              label: Text(cap),
+                              labelStyle: const TextStyle(
+                                  color: Colors.white, fontSize: 11),
+                              backgroundColor: _capabilityColor(cap),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              labelPadding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                            ))
+                        .toList(),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -152,10 +168,14 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                   children: model.quantization.entries.map((entry) {
                     final isSelected = entry.key == selectedQuant;
                     return ChoiceChip(
-                      label: Text('${entry.key}: ${entry.value.sizeMb} MB${entry.value.pro != null ? ' ★' : ''}'),
+                      label: Text(
+                          '${entry.key}: ${entry.value.sizeMb} MB${entry.value.pro != null ? ' ★' : ''}'),
                       selected: isSelected,
                       onSelected: (_) {
-                        setCardState(() { selectedQuant = entry.key; usePro = false; });
+                        setCardState(() {
+                          selectedQuant = entry.key;
+                          usePro = false;
+                        });
                       },
                     );
                   }).toList(),
@@ -166,16 +186,20 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                     children: [
                       Switch(
                         value: usePro,
-                        onChanged: (v) => setCardState(() { usePro = v; }),
+                        onChanged: (v) => setCardState(() {
+                          usePro = v;
+                        }),
                       ),
-                      const Text('Apple-optimized (Pro)', style: TextStyle(fontSize: 13)),
+                      const Text('Apple-optimized (Pro)',
+                          style: TextStyle(fontSize: 13)),
                     ],
                   ),
                 ],
                 if (!model.isDownloaded) ...[
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () => _downloadModel(model, selectedQuant, usePro),
+                    onPressed: () =>
+                        _downloadModel(model, selectedQuant, usePro),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -201,15 +225,15 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
             Text(
               'No models available',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try refreshing to fetch the latest models',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -250,8 +274,8 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                   Text(
                     "Model Discovery",
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -273,9 +297,10 @@ class _FetchModelsPageState extends State<FetchModelsPage> {
                     children: [
                       Text(
                         "Status:",
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       if (isLoading) ...[
                         const SizedBox(width: 8),

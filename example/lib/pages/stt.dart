@@ -27,7 +27,8 @@ class _STTPageState extends State<STTPage> {
   bool _isLoadingModels = false;
   bool _isUsingDefaultModel = false;
   bool _isRecording = false;
-  String _outputText = "Ready to start. Select a model and initialize to begin.";
+  String _outputText =
+      "Ready to start. Select a model and initialize to begin.";
   CactusSTTTranscribeResult? _lastResponse;
   String _downloadProgress = "";
   double? _downloadPercentage;
@@ -71,7 +72,8 @@ class _STTPageState extends State<STTPage> {
           if (!models.any((model) => model.slug == _selectedModel)) {
             _selectedModel = models.first.slug;
           }
-          _outputText = "Models loaded. Select model and click 'Download & Initialize Model' to begin.";
+          _outputText =
+              "Models loaded. Select model and click 'Download & Initialize Model' to begin.";
         } else {
           _outputText = "No models available.";
         }
@@ -83,11 +85,14 @@ class _STTPageState extends State<STTPage> {
         _selectedModel = defaultSlug;
         _isLoadingModels = false;
         _isUsingDefaultModel = true;
-        _outputText = "Network error loading models. Using default model: $defaultSlug";
+        _outputText =
+            "Network error loading models. Using default model: $defaultSlug";
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error. Using default model: $defaultSlug')),
+          SnackBar(
+              content:
+                  Text('Network error. Using default model: $defaultSlug')),
         );
       }
     }
@@ -131,7 +136,8 @@ class _STTPageState extends State<STTPage> {
       setState(() {
         _isInitializing = false;
         _isModelLoaded = true;
-        _outputText = "Model downloaded and initialized successfully! Ready to transcribe audio.";
+        _outputText =
+            "Model downloaded and initialized successfully! Ready to transcribe audio.";
       });
     } catch (e) {
       setState(() {
@@ -223,7 +229,8 @@ class _STTPageState extends State<STTPage> {
         try {
           // Transcribe from audio buffer using transcribe (not transcribeStream)
           final result = await _stt.transcribe(
-            audio: audioData.isNotEmpty ? audioData : List<int>.filled(16000, 0),
+            audio:
+                audioData.isNotEmpty ? audioData : List<int>.filled(16000, 0),
             prompt: CactusSTT.defaultPrompt,
           );
 
@@ -320,7 +327,10 @@ class _STTPageState extends State<STTPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_isDownloading || _isInitializing || _isTranscribing || _isLoadingModels)
+            if (_isDownloading ||
+                _isInitializing ||
+                _isTranscribing ||
+                _isLoadingModels)
               const LinearProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                 backgroundColor: Colors.grey,
@@ -334,7 +344,9 @@ class _STTPageState extends State<STTPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Model', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('Model',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     if (_isLoadingModels)
                       const Text('Loading models...')
@@ -346,15 +358,20 @@ class _STTPageState extends State<STTPage> {
                       DropdownButton<String>(
                         value: _selectedModel,
                         isExpanded: true,
-                        items: _voiceModels.map((model) => DropdownMenuItem(
-                          value: model.slug,
-                          child: Text('${model.slug} (${model.sizeMb}MB)'),
-                        )).toList(),
-                        onChanged: _isModelLoaded ? null : (value) {
-                          setState(() {
-                            _selectedModel = value!;
-                          });
-                        },
+                        items: _voiceModels
+                            .map((model) => DropdownMenuItem(
+                                  value: model.slug,
+                                  child:
+                                      Text('${model.slug} (${model.sizeMb}MB)'),
+                                ))
+                            .toList(),
+                        onChanged: _isModelLoaded
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _selectedModel = value!;
+                                });
+                              },
                       ),
                   ],
                 ),
@@ -365,7 +382,13 @@ class _STTPageState extends State<STTPage> {
 
             // Initialize model button
             ElevatedButton(
-              onPressed: (_isDownloading || _isInitializing || _isModelLoaded || _isLoadingModels || (_voiceModels.isEmpty && !_isUsingDefaultModel)) ? null : _downloadAndInitializeModel,
+              onPressed: (_isDownloading ||
+                      _isInitializing ||
+                      _isModelLoaded ||
+                      _isLoadingModels ||
+                      (_voiceModels.isEmpty && !_isUsingDefaultModel))
+                  ? null
+                  : _downloadAndInitializeModel,
               child: (_isDownloading || _isInitializing)
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
@@ -376,15 +399,22 @@ class _STTPageState extends State<STTPage> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             value: _downloadPercentage,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white),
                             backgroundColor: Colors.grey.shade300,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(_downloadProgress.isNotEmpty ? _downloadProgress : (_isDownloading ? 'Downloading...' : 'Initializing...')),
+                        Text(_downloadProgress.isNotEmpty
+                            ? _downloadProgress
+                            : (_isDownloading
+                                ? 'Downloading...'
+                                : 'Initializing...')),
                       ],
                     )
-                  : Text(_isModelLoaded ? 'Model Ready ✓' : 'Download & Initialize Model'),
+                  : Text(_isModelLoaded
+                      ? 'Model Ready ✓'
+                      : 'Download & Initialize Model'),
             ),
 
             // Show linear progress indicator during download
@@ -405,7 +435,11 @@ class _STTPageState extends State<STTPage> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: (_isInitializing || _isTranscribing || !_isModelLoaded || _isLoadingModels || _isRecording)
+                    onPressed: (_isInitializing ||
+                            _isTranscribing ||
+                            !_isModelLoaded ||
+                            _isLoadingModels ||
+                            _isRecording)
                         ? null
                         : _transcribeFromFile,
                     icon: const Icon(Icons.folder_open, size: 18),
@@ -419,9 +453,14 @@ class _STTPageState extends State<STTPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: (_isInitializing || !_isModelLoaded || _isLoadingModels || _isTranscribing)
+                    onPressed: (_isInitializing ||
+                            !_isModelLoaded ||
+                            _isLoadingModels ||
+                            _isTranscribing)
                         ? null
-                        : _isRecording ? _stopRecording : _startRecording,
+                        : _isRecording
+                            ? _stopRecording
+                            : _startRecording,
                     icon: Icon(_isRecording ? Icons.stop : Icons.mic, size: 18),
                     label: Text(_isRecording ? 'Stop' : 'Record'),
                     style: ElevatedButton.styleFrom(
@@ -479,25 +518,28 @@ class _STTPageState extends State<STTPage> {
                     children: [
                       const Text(
                         'Output:',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _outputText,
                         style: const TextStyle(fontSize: 15),
                       ),
-
                       if (_isTranscribing || _lastResponse != null) ...[
                         const SizedBox(height: 16),
                         const Text(
                           'Transcription:',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Expanded(
                           child: SingleChildScrollView(
                             child: Text(
-                              _streamedText.isNotEmpty ? _streamedText : (_lastResponse?.text ?? ''),
+                              _streamedText.isNotEmpty
+                                  ? _streamedText
+                                  : (_lastResponse?.text ?? ''),
                               style: const TextStyle(fontSize: 15, height: 1.4),
                             ),
                           ),
@@ -506,7 +548,8 @@ class _STTPageState extends State<STTPage> {
                           const SizedBox(height: 16),
                           // Metrics row at the bottom
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade50,
                               borderRadius: BorderRadius.circular(8),
@@ -519,7 +562,9 @@ class _STTPageState extends State<STTPage> {
                                     children: [
                                       const Text(
                                         'Model',
-                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -535,7 +580,9 @@ class _STTPageState extends State<STTPage> {
                                     children: [
                                       const Text(
                                         'TTFT',
-                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -550,7 +597,9 @@ class _STTPageState extends State<STTPage> {
                                     children: [
                                       const Text(
                                         'Total',
-                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(

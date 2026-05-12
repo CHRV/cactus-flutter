@@ -38,18 +38,22 @@ class _ModelSelectorWidgetState extends State<ModelSelectorWidget> {
     try {
       final models = await HuggingFace.fetchModels();
       final filtered = widget.capabilityFilter != null
-          ? models.where((m) => m.capabilities.contains(widget.capabilityFilter)).toList()
+          ? models
+              .where((m) => m.capabilities.contains(widget.capabilityFilter))
+              .toList()
           : models;
       setState(() {
         _models = filtered;
         _isLoading = false;
         if (widget.initialModel != null) {
-          _selectedModel = filtered.where((m) => m.slug == widget.initialModel).firstOrNull;
+          _selectedModel =
+              filtered.where((m) => m.slug == widget.initialModel).firstOrNull;
         }
         if (_selectedModel == null && filtered.isNotEmpty) {
           _selectedModel = filtered.first;
         }
-        if (_selectedModel != null && !_selectedModel!.quantization.containsKey(_selectedQuantization)) {
+        if (_selectedModel != null &&
+            !_selectedModel!.quantization.containsKey(_selectedQuantization)) {
           _selectedQuantization = _selectedModel!.quantization.keys.first;
         }
       });
@@ -57,7 +61,9 @@ class _ModelSelectorWidgetState extends State<ModelSelectorWidget> {
       widget.onQuantizationChanged?.call(_selectedQuantization);
       widget.onProChanged?.call(_usePro);
     } catch (e) {
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
       debugPrint('Error loading models: $e');
     }
   }
@@ -90,10 +96,13 @@ class _ModelSelectorWidgetState extends State<ModelSelectorWidget> {
           hintText: 'Select Model',
           expandedInsets: EdgeInsets.zero,
           initialSelection: _selectedModel?.slug,
-          dropdownMenuEntries: _models.map((m) => DropdownMenuEntry(
-            value: m.slug,
-            label: '${m.slug} (${m.quantization['int4']?.sizeMb ?? 0} MB)',
-          )).toList(),
+          dropdownMenuEntries: _models
+              .map((m) => DropdownMenuEntry(
+                    value: m.slug,
+                    label:
+                        '${m.slug} (${m.quantization['int4']?.sizeMb ?? 0} MB)',
+                  ))
+              .toList(),
           onSelected: (String? value) {
             if (value != null) {
               final model = _models.where((m) => m.slug == value).firstOrNull;
@@ -120,7 +129,8 @@ class _ModelSelectorWidgetState extends State<ModelSelectorWidget> {
               final info = _selectedModel!.quantization[key]!;
               final isSelected = key == _selectedQuantization;
               return ChoiceChip(
-                label: Text('$key: ${info.sizeMb} MB${info.pro != null ? ' ★' : ''}'),
+                label: Text(
+                    '$key: ${info.sizeMb} MB${info.pro != null ? ' ★' : ''}'),
                 selected: isSelected,
                 onSelected: (_) {
                   setState(() {
@@ -138,12 +148,16 @@ class _ModelSelectorWidgetState extends State<ModelSelectorWidget> {
             children: [
               Switch(
                 value: _usePro,
-                onChanged: (_selectedModel?.quantization[_selectedQuantization]?.pro != null)
-                    ? (value) {
-                        setState(() { _usePro = value; });
-                        widget.onProChanged?.call(value);
-                      }
-                    : null,
+                onChanged:
+                    (_selectedModel?.quantization[_selectedQuantization]?.pro !=
+                            null)
+                        ? (value) {
+                            setState(() {
+                              _usePro = value;
+                            });
+                            widget.onProChanged?.call(value);
+                          }
+                        : null,
               ),
               const Text('Apple-optimized (Pro)'),
             ],

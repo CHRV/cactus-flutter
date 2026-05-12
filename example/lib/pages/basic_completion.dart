@@ -10,7 +10,7 @@ class BasicCompletionPage extends StatefulWidget {
 }
 
 class _BasicCompletionPageState extends State<BasicCompletionPage> {
-CactusLM get lm => _lm!;
+  CactusLM get lm => _lm!;
   CactusLM? _lm;
   bool isModelDownloaded = false;
   bool isModelLoaded = false;
@@ -45,7 +45,8 @@ CactusLM get lm => _lm!;
     try {
       _lm ??= CactusLM(
         model: selectedModel!.slug,
-        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options:
+            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -66,7 +67,8 @@ CactusLM get lm => _lm!;
       );
       setState(() {
         isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText =
+            'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
       setState(() {
@@ -84,14 +86,13 @@ CactusLM get lm => _lm!;
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-    
+
     try {
-      await lm.initializeModel(
-          model: selectedModel!.slug
-        );
+      await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText = 'Model initialized successfully! Ready to generate completions.';
+        outputText =
+            'Model initialized successfully! Ready to generate completions.';
       });
     } catch (e) {
       setState(() {
@@ -111,20 +112,21 @@ CactusLM get lm => _lm!;
       });
       return;
     }
-    
+
     setState(() {
       isGenerating = true;
       outputText = 'Generating response...';
     });
-    
+
     try {
-      final resp = await lm.generateCompletion(
-        messages: [ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system"), ChatMessage(content: 'Hi, how are you?', role: "user")],
-        params: CactusCompletionParams(
-          maxTokens: 150
-        )
-      );
-      
+      final resp = await lm.generateCompletion(messages: [
+        ChatMessage(
+            content:
+                'You are Cactus, a very capable AI assistant running offline on a smartphone',
+            role: "system"),
+        ChatMessage(content: 'Hi, how are you?', role: "user")
+      ], params: CactusCompletionParams(maxTokens: 150));
+
       if (resp.success) {
         setState(() {
           lastResponse = resp.response;
@@ -175,145 +177,178 @@ CactusLM get lm => _lm!;
                   height: 56,
                 ),
                 const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: isDownloading ? null : download,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isDownloading
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Downloading...'),
-                    ],
-                  )
-                : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isInitializing || isDownloading) ? null : initializeModel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isInitializing
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Initializing...'),
-                    ],
-                  )
-                : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded) ? null : generateCompletion,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-              ),
-              child: isGenerating
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Generating...'),
-                    ],
-                  )
-                : const Text('Generate Basic Completion'),
-            ),
-
-            const SizedBox(height: 20),
-            
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.white,
+                ElevatedButton(
+                  onPressed: isDownloading ? null : download,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isDownloading
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Downloading...'),
+                          ],
+                        )
+                      : Text(isModelDownloaded
+                          ? 'Model Downloaded ✓'
+                          : 'Download Model'),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Output:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: (isInitializing || isDownloading)
+                      ? null
+                      : initializeModel,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isInitializing
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Initializing...'),
+                          ],
+                        )
+                      : Text(isModelLoaded
+                          ? 'Model Initialized ✓'
+                          : 'Initialize Model'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: (isDownloading ||
+                          isInitializing ||
+                          isGenerating ||
+                          !isModelLoaded)
+                      ? null
+                      : generateCompletion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isGenerating
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Generating...'),
+                          ],
+                        )
+                      : const Text('Generate Basic Completion'),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 8),
-                    
-                    Text(outputText, style: const TextStyle(color: Colors.black)),
-                    if (lastResponse != null) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Response:',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Output:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Column(
-                            children: [
-                              const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
-                            ],
+                        const SizedBox(height: 8),
+                        Text(outputText,
+                            style: const TextStyle(color: Colors.black)),
+                        if (lastResponse != null) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Response:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black),
                           ),
-                          Column(
-                            children: [
-                              const Text('TTFT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text('${lastTTFT.toStringAsFixed(2)} ms', style: const TextStyle(color: Colors.black)),
-                            ],
+                          const SizedBox(height: 4),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Text(lastResponse!,
+                                  style: const TextStyle(color: Colors.black)),
+                            ),
                           ),
-                          Column(
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              const Text('TPS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                              Text(lastTPS.toStringAsFixed(2), style: const TextStyle(color: Colors.black)),
+                              Column(
+                                children: [
+                                  const Text('Model',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(selectedModel?.slug ?? '',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Text('TTFT',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text('${lastTTFT.toStringAsFixed(2)} ms',
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Text('TPS',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black)),
+                                  Text(lastTPS.toStringAsFixed(2),
+                                      style:
+                                          const TextStyle(color: Colors.black)),
+                                ],
+                              ),
                             ],
                           ),
                         ],
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
           Positioned(
             top: 16,
             left: 16,
@@ -321,9 +356,15 @@ CactusLM get lm => _lm!;
             child: ModelSelectorWidget(
               initialModel: 'qwen3-0.6b',
               capabilityFilter: 'completion',
-              onModelSelected: (model) => setState(() { selectedModel = model; }),
-              onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
-              onProChanged: (p) => setState(() { usePro = p; }),
+              onModelSelected: (model) => setState(() {
+                selectedModel = model;
+              }),
+              onQuantizationChanged: (q) => setState(() {
+                selectedQuantization = q;
+              }),
+              onProChanged: (p) => setState(() {
+                usePro = p;
+              }),
             ),
           ),
         ],

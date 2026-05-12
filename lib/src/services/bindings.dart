@@ -109,7 +109,9 @@ typedef CactusStreamTranscribeProcessNative = Int32 Function(
     Pointer<Utf8> responseBuffer,
     IntPtr bufferSize);
 typedef CactusStreamTranscribeStopNative = Int32 Function(
-    CactusStreamTranscribeT stream, Pointer<Utf8> responseBuffer, IntPtr bufferSize);
+    CactusStreamTranscribeT stream,
+    Pointer<Utf8> responseBuffer,
+    IntPtr bufferSize);
 
 typedef CactusEmbedNative = Int32 Function(
     CactusModelT model,
@@ -197,7 +199,9 @@ typedef CactusIndexDestroyNative = Void Function(CactusIndexT index);
 typedef CactusGetLastErrorNative = Pointer<Utf8> Function();
 
 typedef CactusSetTelemetryEnvironmentNative = Void Function(
-    Pointer<Utf8> framework, Pointer<Utf8> cacheLocation, Pointer<Utf8> version);
+    Pointer<Utf8> framework,
+    Pointer<Utf8> cacheLocation,
+    Pointer<Utf8> version);
 
 typedef CactusInitDart = CactusModelT Function(
     Pointer<Utf8> modelPath, Pointer<Utf8> corpusDir, bool cacheIndex);
@@ -252,7 +256,9 @@ typedef CactusStreamTranscribeProcessDart = int Function(
     Pointer<Utf8> responseBuffer,
     int bufferSize);
 typedef CactusStreamTranscribeStopDart = int Function(
-    CactusStreamTranscribeT stream, Pointer<Utf8> responseBuffer, int bufferSize);
+    CactusStreamTranscribeT stream,
+    Pointer<Utf8> responseBuffer,
+    int bufferSize);
 
 typedef CactusEmbedDart = int Function(
     CactusModelT model,
@@ -340,7 +346,9 @@ typedef CactusIndexDestroyDart = void Function(CactusIndexT index);
 typedef CactusGetLastErrorDart = Pointer<Utf8> Function();
 
 typedef CactusSetTelemetryEnvironmentDart = void Function(
-    Pointer<Utf8> framework, Pointer<Utf8> cacheLocation, Pointer<Utf8> version);
+    Pointer<Utf8> framework,
+    Pointer<Utf8> cacheLocation,
+    Pointer<Utf8> version);
 
 typedef CactusSetAppIdNative = Void Function(Pointer<Utf8> appId);
 typedef CactusSetAppIdDart = void Function(Pointer<Utf8> appId);
@@ -351,16 +359,18 @@ typedef CactusTelemetryFlushDart = void Function();
 typedef CactusTelemetryShutdownNative = Void Function();
 typedef CactusTelemetryShutdownDart = void Function();
 
-typedef LogCallbackNative = Void Function(
-    Int32 level, Pointer<Utf8> component, Pointer<Utf8> message, Pointer<Void> userData);
+typedef LogCallbackNative = Void Function(Int32 level, Pointer<Utf8> component,
+    Pointer<Utf8> message, Pointer<Void> userData);
 
 typedef CactusLogSetLevelNative = Void Function(Int32 level);
 typedef CactusLogSetLevelDart = void Function(int level);
 
 typedef CactusLogSetCallbackNative = Void Function(
-    Pointer<NativeFunction<LogCallbackNative>> callback, Pointer<Void> userData);
+    Pointer<NativeFunction<LogCallbackNative>> callback,
+    Pointer<Void> userData);
 typedef CactusLogSetCallbackDart = void Function(
-    Pointer<NativeFunction<LogCallbackNative>> callback, Pointer<Void> userData);
+    Pointer<NativeFunction<LogCallbackNative>> callback,
+    Pointer<Void> userData);
 
 typedef CactusIndexGetNative = Int32 Function(
     CactusIndexT index,
@@ -383,7 +393,6 @@ typedef CactusIndexGetDart = int Function(
     Pointer<Pointer<Float>> embeddingBuffers,
     Pointer<IntPtr> embeddingBufferSizes);
 
-
 DynamicLibrary _loadLibrary() {
   if (Platform.isAndroid) {
     return DynamicLibrary.open('libcactus.so');
@@ -394,31 +403,35 @@ DynamicLibrary _loadLibrary() {
     if (explicit != null) return DynamicLibrary.open(explicit);
     return DynamicLibrary.process();
   } else {
-    throw UnsupportedError('Platform not supported: ${Platform.operatingSystem}');
+    throw UnsupportedError(
+        'Platform not supported: ${Platform.operatingSystem}');
   }
 }
 
 final _lib = _loadLibrary();
 
-
 final _cactusInit =
     _lib.lookupFunction<CactusInitNative, CactusInitDart>('cactus_init');
-final _cactusDestroy =
-    _lib.lookupFunction<CactusDestroyNative, CactusDestroyDart>('cactus_destroy');
+final _cactusDestroy = _lib
+    .lookupFunction<CactusDestroyNative, CactusDestroyDart>('cactus_destroy');
 final _cactusReset =
     _lib.lookupFunction<CactusResetNative, CactusResetDart>('cactus_reset');
 final _cactusStop =
     _lib.lookupFunction<CactusStopNative, CactusStopDart>('cactus_stop');
 final _cactusComplete =
-    _lib.lookupFunction<CactusCompleteNative, CactusCompleteDart>('cactus_complete');
-final _cactusPrefill =
-    _lib.lookupFunction<CactusPrefillNative, CactusPrefillDart>('cactus_prefill');
+    _lib.lookupFunction<CactusCompleteNative, CactusCompleteDart>(
+        'cactus_complete');
+final _cactusPrefill = _lib
+    .lookupFunction<CactusPrefillNative, CactusPrefillDart>('cactus_prefill');
 final _cactusTokenize =
-    _lib.lookupFunction<CactusTokenizeNative, CactusTokenizeDart>('cactus_tokenize');
-final _cactusScoreWindow = _lib
-    .lookupFunction<CactusScoreWindowNative, CactusScoreWindowDart>('cactus_score_window');
+    _lib.lookupFunction<CactusTokenizeNative, CactusTokenizeDart>(
+        'cactus_tokenize');
+final _cactusScoreWindow =
+    _lib.lookupFunction<CactusScoreWindowNative, CactusScoreWindowDart>(
+        'cactus_score_window');
 final _cactusTranscribe =
-    _lib.lookupFunction<CactusTranscribeNative, CactusTranscribeDart>('cactus_transcribe');
+    _lib.lookupFunction<CactusTranscribeNative, CactusTranscribeDart>(
+        'cactus_transcribe');
 final _cactusStreamTranscribeStart = _lib.lookupFunction<
     CactusStreamTranscribeStartNative,
     CactusStreamTranscribeStartDart>('cactus_stream_transcribe_start');
@@ -431,55 +444,66 @@ final _cactusStreamTranscribeStop = _lib.lookupFunction<
 final _cactusEmbed =
     _lib.lookupFunction<CactusEmbedNative, CactusEmbedDart>('cactus_embed');
 final _cactusImageEmbed =
-    _lib.lookupFunction<CactusImageEmbedNative, CactusImageEmbedDart>('cactus_image_embed');
+    _lib.lookupFunction<CactusImageEmbedNative, CactusImageEmbedDart>(
+        'cactus_image_embed');
 final _cactusAudioEmbed =
-    _lib.lookupFunction<CactusAudioEmbedNative, CactusAudioEmbedDart>('cactus_audio_embed');
+    _lib.lookupFunction<CactusAudioEmbedNative, CactusAudioEmbedDart>(
+        'cactus_audio_embed');
 final _cactusVad =
     _lib.lookupFunction<CactusVadNative, CactusVadDart>('cactus_vad');
-final _cactusDiarize =
-    _lib.lookupFunction<CactusDiarizeNative, CactusDiarizeDart>('cactus_diarize');
+final _cactusDiarize = _lib
+    .lookupFunction<CactusDiarizeNative, CactusDiarizeDart>('cactus_diarize');
 final _cactusEmbedSpeaker =
-    _lib.lookupFunction<CactusEmbedSpeakerNative, CactusEmbedSpeakerDart>('cactus_embed_speaker');
+    _lib.lookupFunction<CactusEmbedSpeakerNative, CactusEmbedSpeakerDart>(
+        'cactus_embed_speaker');
 final _cactusRagQuery =
-    _lib.lookupFunction<CactusRagQueryNative, CactusRagQueryDart>('cactus_rag_query');
+    _lib.lookupFunction<CactusRagQueryNative, CactusRagQueryDart>(
+        'cactus_rag_query');
 final _cactusIndexInit =
-    _lib.lookupFunction<CactusIndexInitNative, CactusIndexInitDart>('cactus_index_init');
+    _lib.lookupFunction<CactusIndexInitNative, CactusIndexInitDart>(
+        'cactus_index_init');
 final _cactusIndexAdd =
-    _lib.lookupFunction<CactusIndexAddNative, CactusIndexAddDart>('cactus_index_add');
+    _lib.lookupFunction<CactusIndexAddNative, CactusIndexAddDart>(
+        'cactus_index_add');
 final _cactusIndexDelete =
-    _lib.lookupFunction<CactusIndexDeleteNative, CactusIndexDeleteDart>('cactus_index_delete');
+    _lib.lookupFunction<CactusIndexDeleteNative, CactusIndexDeleteDart>(
+        'cactus_index_delete');
 final _cactusIndexQuery =
-    _lib.lookupFunction<CactusIndexQueryNative, CactusIndexQueryDart>('cactus_index_query');
+    _lib.lookupFunction<CactusIndexQueryNative, CactusIndexQueryDart>(
+        'cactus_index_query');
 final _cactusIndexCompact =
-    _lib.lookupFunction<CactusIndexCompactNative, CactusIndexCompactDart>('cactus_index_compact');
+    _lib.lookupFunction<CactusIndexCompactNative, CactusIndexCompactDart>(
+        'cactus_index_compact');
 final _cactusIndexDestroy =
-    _lib.lookupFunction<CactusIndexDestroyNative, CactusIndexDestroyDart>('cactus_index_destroy');
-final _cactusGetLastError = _lib
-    .lookupFunction<CactusGetLastErrorNative, CactusGetLastErrorDart>('cactus_get_last_error');
+    _lib.lookupFunction<CactusIndexDestroyNative, CactusIndexDestroyDart>(
+        'cactus_index_destroy');
+final _cactusGetLastError =
+    _lib.lookupFunction<CactusGetLastErrorNative, CactusGetLastErrorDart>(
+        'cactus_get_last_error');
 final _cactusSetTelemetryEnvironment = _lib.lookupFunction<
     CactusSetTelemetryEnvironmentNative,
     CactusSetTelemetryEnvironmentDart>('cactus_set_telemetry_environment');
-final _cactusTelemetryFlush = _lib.lookupFunction<
-    CactusTelemetryFlushNative,
-    CactusTelemetryFlushDart>('cactus_telemetry_flush');
+final _cactusTelemetryFlush =
+    _lib.lookupFunction<CactusTelemetryFlushNative, CactusTelemetryFlushDart>(
+        'cactus_telemetry_flush');
 final _cactusTelemetryShutdown = _lib.lookupFunction<
     CactusTelemetryShutdownNative,
     CactusTelemetryShutdownDart>('cactus_telemetry_shutdown');
-final _cactusSetAppId = _lib.lookupFunction<
-    CactusSetAppIdNative,
-    CactusSetAppIdDart>('cactus_set_app_id');
-final _cactusIndexGet = _lib.lookupFunction<
-    CactusIndexGetNative,
-    CactusIndexGetDart>('cactus_index_get');
-final _cactusDetectLanguage = _lib.lookupFunction<
-    CactusDetectLanguageNative,
-    CactusDetectLanguageDart>('cactus_detect_language');
-final _cactusLogSetLevel = _lib.lookupFunction<
-    CactusLogSetLevelNative,
-    CactusLogSetLevelDart>('cactus_log_set_level');
-final _cactusLogSetCallback = _lib.lookupFunction<
-    CactusLogSetCallbackNative,
-    CactusLogSetCallbackDart>('cactus_log_set_callback');
+final _cactusSetAppId =
+    _lib.lookupFunction<CactusSetAppIdNative, CactusSetAppIdDart>(
+        'cactus_set_app_id');
+final _cactusIndexGet =
+    _lib.lookupFunction<CactusIndexGetNative, CactusIndexGetDart>(
+        'cactus_index_get');
+final _cactusDetectLanguage =
+    _lib.lookupFunction<CactusDetectLanguageNative, CactusDetectLanguageDart>(
+        'cactus_detect_language');
+final _cactusLogSetLevel =
+    _lib.lookupFunction<CactusLogSetLevelNative, CactusLogSetLevelDart>(
+        'cactus_log_set_level');
+final _cactusLogSetCallback =
+    _lib.lookupFunction<CactusLogSetCallbackNative, CactusLogSetCallbackDart>(
+        'cactus_log_set_callback');
 
 final class Utf8 extends Opaque {}
 
@@ -528,9 +552,12 @@ class _MallocAllocator implements Allocator {
 final calloc = _Calloc();
 
 class _Calloc implements Allocator {
-  static final _callocPtr = _lib.lookup<NativeFunction<Pointer<Void> Function(IntPtr, IntPtr)>>('calloc');
-  static final _freePtr = _lib.lookup<NativeFunction<Void Function(Pointer<Void>)>>('free');
-  static final _calloc = _callocPtr.asFunction<Pointer<Void> Function(int, int)>();
+  static final _callocPtr = _lib
+      .lookup<NativeFunction<Pointer<Void> Function(IntPtr, IntPtr)>>('calloc');
+  static final _freePtr =
+      _lib.lookup<NativeFunction<Void Function(Pointer<Void>)>>('free');
+  static final _calloc =
+      _callocPtr.asFunction<Pointer<Void> Function(int, int)>();
   static final _free = _freePtr.asFunction<void Function(Pointer<Void>)>();
 
   @override
@@ -653,9 +680,16 @@ String cactusComplete(
 
   try {
     final result = _cactusComplete(
-      model, messagesPtr, responseBuffer.cast(), bufferSize,
-      optionsPtr, toolsPtr, callbackPtr, nullptr,
-      pcmBuffer, pcmSize,
+      model,
+      messagesPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      toolsPtr,
+      callbackPtr,
+      nullptr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('Completion failed: ${cactusGetLastError()}');
@@ -695,8 +729,14 @@ String cactusPrefill(
 
   try {
     final result = _cactusPrefill(
-      model, messagesPtr, responseBuffer.cast(), bufferSize,
-      optionsPtr, toolsPtr, pcmBuffer, pcmSize,
+      model,
+      messagesPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      toolsPtr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('Prefill failed: ${cactusGetLastError()}');
@@ -747,10 +787,16 @@ String cactusTranscribe(
 
   try {
     final result = _cactusTranscribe(
-      model, audioPathPtr, promptPtr,
-      responseBuffer.cast(), bufferSize,
-      optionsPtr, callbackPtr, nullptr,
-      pcmBuffer, pcmSize,
+      model,
+      audioPathPtr,
+      promptPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      callbackPtr,
+      nullptr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('Transcription failed: ${cactusGetLastError()}');
@@ -774,7 +820,8 @@ Float32List cactusEmbed(CactusModelT model, String text, bool normalize) {
   final textPtr = text.toNativeUtf8();
 
   try {
-    final result = _cactusEmbed(model, textPtr, embeddingsBuffer, maxDim, embeddingDim, normalize);
+    final result = _cactusEmbed(
+        model, textPtr, embeddingsBuffer, maxDim, embeddingDim, normalize);
     if (result < 0) {
       throw Exception('Embedding failed: ${cactusGetLastError()}');
     }
@@ -795,7 +842,8 @@ Float32List cactusImageEmbed(CactusModelT model, String imagePath) {
   final imagePathPtr = imagePath.toNativeUtf8();
 
   try {
-    final result = _cactusImageEmbed(model, imagePathPtr, embeddingsBuffer, maxDim, embeddingDim);
+    final result = _cactusImageEmbed(
+        model, imagePathPtr, embeddingsBuffer, maxDim, embeddingDim);
     if (result < 0) {
       throw Exception('Image embedding failed: ${cactusGetLastError()}');
     }
@@ -816,7 +864,8 @@ Float32List cactusAudioEmbed(CactusModelT model, String audioPath) {
   final audioPathPtr = audioPath.toNativeUtf8();
 
   try {
-    final result = _cactusAudioEmbed(model, audioPathPtr, embeddingsBuffer, maxDim, embeddingDim);
+    final result = _cactusAudioEmbed(
+        model, audioPathPtr, embeddingsBuffer, maxDim, embeddingDim);
     if (result < 0) {
       throw Exception('Audio embedding failed: ${cactusGetLastError()}');
     }
@@ -851,7 +900,13 @@ String cactusDiarize(
 
   try {
     final result = _cactusDiarize(
-      model, audioPathPtr, responseBuffer.cast(), bufferSize, optionsPtr, pcmBuffer, pcmSize,
+      model,
+      audioPathPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('Diarize failed: ${cactusGetLastError()}');
@@ -896,7 +951,15 @@ String cactusEmbedSpeaker(
 
   try {
     final result = _cactusEmbedSpeaker(
-      model, audioPathPtr, responseBuffer.cast(), bufferSize, optionsPtr, pcmBuffer, pcmSize, maskPtr, maskSize,
+      model,
+      audioPathPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      pcmBuffer,
+      pcmSize,
+      maskPtr,
+      maskSize,
     );
     if (result < 0) {
       throw Exception('EmbedSpeaker failed: ${cactusGetLastError()}');
@@ -933,7 +996,13 @@ String cactusVad(
 
   try {
     final result = _cactusVad(
-      model, audioPathPtr, responseBuffer.cast(), bufferSize, optionsPtr, pcmBuffer, pcmSize,
+      model,
+      audioPathPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('VAD failed: ${cactusGetLastError()}');
@@ -954,7 +1023,8 @@ String cactusRagQuery(CactusModelT model, String query, int topK) {
   final queryPtr = query.toNativeUtf8();
 
   try {
-    final result = _cactusRagQuery(model, queryPtr, responseBuffer.cast(), bufferSize, topK);
+    final result = _cactusRagQuery(
+        model, queryPtr, responseBuffer.cast(), bufferSize, topK);
     if (result < 0) {
       throw Exception('RAG query failed: ${cactusGetLastError()}');
     }
@@ -973,7 +1043,8 @@ List<int> cactusTokenize(CactusModelT model, String text) {
   final textPtr = text.toNativeUtf8();
 
   try {
-    final result = _cactusTokenize(model, textPtr, tokenBuffer, maxTokens, outTokenLen);
+    final result =
+        _cactusTokenize(model, textPtr, tokenBuffer, maxTokens, outTokenLen);
     if (result < 0) {
       throw Exception('Tokenization failed: ${cactusGetLastError()}');
     }
@@ -987,7 +1058,8 @@ List<int> cactusTokenize(CactusModelT model, String text) {
 }
 
 /// Scores a window of tokens. Returns JSON.
-String cactusScoreWindow(CactusModelT model, List<int> tokens, int start, int end, int context) {
+String cactusScoreWindow(
+    CactusModelT model, List<int> tokens, int start, int end, int context) {
   final tokenBuffer = calloc<Uint32>(tokens.length);
   for (var i = 0; i < tokens.length; i++) {
     tokenBuffer[i] = tokens[i];
@@ -997,7 +1069,14 @@ String cactusScoreWindow(CactusModelT model, List<int> tokens, int start, int en
 
   try {
     final result = _cactusScoreWindow(
-      model, tokenBuffer, tokens.length, start, end, context, responseBuffer.cast(), bufferSize,
+      model,
+      tokenBuffer,
+      tokens.length,
+      start,
+      end,
+      context,
+      responseBuffer.cast(),
+      bufferSize,
     );
     if (result < 0) {
       throw Exception('Score window failed: ${cactusGetLastError()}');
@@ -1010,12 +1089,14 @@ String cactusScoreWindow(CactusModelT model, List<int> tokens, int start, int en
 }
 
 /// Creates a streaming transcription session.
-CactusStreamTranscribeT cactusStreamTranscribeStart(CactusModelT model, String? optionsJson) {
+CactusStreamTranscribeT cactusStreamTranscribeStart(
+    CactusModelT model, String? optionsJson) {
   final optionsPtr = optionsJson?.toNativeUtf8() ?? nullptr;
   try {
     final handle = _cactusStreamTranscribeStart(model, optionsPtr);
     if (handle == nullptr) {
-      throw Exception('Failed to create stream transcriber: ${cactusGetLastError()}');
+      throw Exception(
+          'Failed to create stream transcriber: ${cactusGetLastError()}');
     }
     return handle;
   } finally {
@@ -1024,7 +1105,8 @@ CactusStreamTranscribeT cactusStreamTranscribeStart(CactusModelT model, String? 
 }
 
 /// Processes a chunk of PCM audio. Returns partial text.
-String cactusStreamTranscribeProcess(CactusStreamTranscribeT stream, Uint8List pcmData) {
+String cactusStreamTranscribeProcess(
+    CactusStreamTranscribeT stream, Uint8List pcmData) {
   const bufferSize = 65536;
   final pcmBuffer = calloc<Uint8>(pcmData.length);
   pcmBuffer.asTypedList(pcmData.length).setAll(0, pcmData);
@@ -1032,7 +1114,11 @@ String cactusStreamTranscribeProcess(CactusStreamTranscribeT stream, Uint8List p
 
   try {
     final result = _cactusStreamTranscribeProcess(
-      stream, pcmBuffer, pcmData.length, responseBuffer.cast(), bufferSize,
+      stream,
+      pcmBuffer,
+      pcmData.length,
+      responseBuffer.cast(),
+      bufferSize,
     );
     if (result < 0) {
       throw Exception('Stream process failed: ${cactusGetLastError()}');
@@ -1050,7 +1136,8 @@ String cactusStreamTranscribeStop(CactusStreamTranscribeT stream) {
   final responseBuffer = calloc<Uint8>(bufferSize);
 
   try {
-    final result = _cactusStreamTranscribeStop(stream, responseBuffer.cast(), bufferSize);
+    final result =
+        _cactusStreamTranscribeStop(stream, responseBuffer.cast(), bufferSize);
     if (result < 0) {
       throw Exception('Stream stop failed: ${cactusGetLastError()}');
     }
@@ -1096,9 +1183,11 @@ int cactusIndexAdd(
   final documentsPtr = calloc<Pointer<Utf8>>(count);
   for (var i = 0; i < count; i++) documentsPtr[i] = documents[i].toNativeUtf8();
 
-  final metadatasPtr = metadatas != null ? calloc<Pointer<Utf8>>(count) : nullptr;
+  final metadatasPtr =
+      metadatas != null ? calloc<Pointer<Utf8>>(count) : nullptr;
   if (metadatas != null) {
-    for (var i = 0; i < count; i++) metadatasPtr[i] = metadatas[i].toNativeUtf8();
+    for (var i = 0; i < count; i++)
+      metadatasPtr[i] = metadatas[i].toNativeUtf8();
   }
 
   final embeddingsPtr = calloc<Pointer<Float>>(count);
@@ -1109,7 +1198,8 @@ int cactusIndexAdd(
   }
 
   try {
-    final result = _cactusIndexAdd(index, idsPtr, documentsPtr, metadatasPtr, embeddingsPtr, count, embDim);
+    final result = _cactusIndexAdd(index, idsPtr, documentsPtr, metadatasPtr,
+        embeddingsPtr, count, embDim);
     if (result < 0) {
       throw Exception('Index add failed: ${cactusGetLastError()}');
     }
@@ -1176,10 +1266,15 @@ String cactusIndexGet(CactusIndexT index, List<int> ids) {
 
   try {
     final result = _cactusIndexGet(
-      index, idsPtr, count,
-      docBuffers, docBufferSizes,
-      metaBuffers, metaBufferSizes,
-      embBuffers, embBufferSizes,
+      index,
+      idsPtr,
+      count,
+      docBuffers,
+      docBufferSizes,
+      metaBuffers,
+      metaBufferSizes,
+      embBuffers,
+      embBufferSizes,
     );
     if (result < 0) {
       throw Exception('Index get failed: ${cactusGetLastError()}');
@@ -1193,7 +1288,10 @@ String cactusIndexGet(CactusIndexT index, List<int> ids) {
       final meta = metaStr.isNotEmpty ? metaStr : null;
       final embDim = embBufferSizes[i];
       sb.write('{"document":"$doc"');
-      if (meta != null) sb.write(',"metadata":"$meta"'); else sb.write(',"metadata":null');
+      if (meta != null)
+        sb.write(',"metadata":"$meta"');
+      else
+        sb.write(',"metadata":null');
       sb.write(',"embedding":[');
       for (var j = 0; j < embDim; j++) {
         if (j > 0) sb.write(',');
@@ -1220,7 +1318,8 @@ String cactusIndexGet(CactusIndexT index, List<int> ids) {
 }
 
 /// Searches the index by embedding. Returns JSON.
-String cactusIndexQuery(CactusIndexT index, List<double> embedding, String? optionsJson) {
+String cactusIndexQuery(
+    CactusIndexT index, List<double> embedding, String? optionsJson) {
   const resultCapacity = 1000;
   final embPtr = calloc<Float>(embedding.length);
   for (var i = 0; i < embedding.length; i++) embPtr[i] = embedding[i];
@@ -1244,8 +1343,15 @@ String cactusIndexQuery(CactusIndexT index, List<double> embedding, String? opti
 
   try {
     final result = _cactusIndexQuery(
-      index, embPtrPtr, 1, embedding.length, optionsPtr,
-      idBuffers, idBufferSizes, scoreBuffers, scoreBufferSizes,
+      index,
+      embPtrPtr,
+      1,
+      embedding.length,
+      optionsPtr,
+      idBuffers,
+      idBufferSizes,
+      scoreBuffers,
+      scoreBufferSizes,
     );
     if (result < 0) {
       throw Exception('Index query failed: ${cactusGetLastError()}');
@@ -1303,7 +1409,13 @@ String cactusDetectLanguage(
 
   try {
     final result = _cactusDetectLanguage(
-      model, audioPathPtr, responseBuffer.cast(), bufferSize, optionsPtr, pcmBuffer, pcmSize,
+      model,
+      audioPathPtr,
+      responseBuffer.cast(),
+      bufferSize,
+      optionsPtr,
+      pcmBuffer,
+      pcmSize,
     );
     if (result < 0) {
       throw Exception('Detect language failed: ${cactusGetLastError()}');
@@ -1325,7 +1437,8 @@ void cactusLogSetLevel(int level) {
 NativeCallable<LogCallbackNative>? _logCallable;
 
 /// Sets a log callback. Pass null to clear.
-void cactusLogSetCallback(void Function(int level, String component, String message)? onLog) {
+void cactusLogSetCallback(
+    void Function(int level, String component, String message)? onLog) {
   _logCallable?.close();
   _logCallable = null;
   if (onLog == null) {
@@ -1333,10 +1446,10 @@ void cactusLogSetCallback(void Function(int level, String component, String mess
     return;
   }
   _logCallable = NativeCallable<LogCallbackNative>.isolateLocal(
-    (int level, Pointer<Utf8> component, Pointer<Utf8> message, Pointer<Void> _) {
+    (int level, Pointer<Utf8> component, Pointer<Utf8> message,
+        Pointer<Void> _) {
       onLog(level, component.toDartString(), message.toDartString());
     },
   );
   _cactusLogSetCallback(_logCallable!.nativeFunction, nullptr);
 }
-

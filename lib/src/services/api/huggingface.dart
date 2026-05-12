@@ -52,7 +52,8 @@ class HuggingFace {
       final response = await request.close();
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to fetch refs for $modelId: ${response.statusCode}');
+        throw Exception(
+            'Failed to fetch refs for $modelId: ${response.statusCode}');
       }
 
       final responseBody = await response.transform(utf8.decoder).join();
@@ -75,7 +76,8 @@ class HuggingFace {
       }
 
       if (compatible.isEmpty) {
-        throw Exception('No compatible version found for $modelId (runtime: v$packageVersion)');
+        throw Exception(
+            'No compatible version found for $modelId (runtime: v$packageVersion)');
       }
 
       compatible.sort((a, b) => a.value.compareTo(b.value));
@@ -100,12 +102,14 @@ class HuggingFace {
     final client = _createClient();
     try {
       final org = CactusConfig.huggingFaceOrg;
-      final uri = Uri.parse('https://huggingface.co/api/models?author=$org&full=true');
+      final uri =
+          Uri.parse('https://huggingface.co/api/models?author=$org&full=true');
       final request = await client.getUrl(uri);
       final response = await request.close();
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to fetch HuggingFace registry: ${response.statusCode}');
+        throw Exception(
+            'Failed to fetch HuggingFace registry: ${response.statusCode}');
       }
 
       final responseBody = await response.transform(utf8.decoder).join();
@@ -132,7 +136,8 @@ class HuggingFace {
     }
   }
 
-  static Future<_RepoParseResult?> _parseRepoToModel(Map<String, dynamic> repo) async {
+  static Future<_RepoParseResult?> _parseRepoToModel(
+      Map<String, dynamic> repo) async {
     final repoId = repo['id'] as String;
     final siblings = (repo['siblings'] as List<dynamic>?) ?? [];
     final tags = (repo['tags'] as List<dynamic>?) ?? [];
@@ -142,8 +147,12 @@ class HuggingFace {
         .whereType<String>()
         .toList();
 
-    final int4File = fileNames.where((f) => f.startsWith('weights/') && f.endsWith('-int4.zip')).toList();
-    final int8File = fileNames.where((f) => f.startsWith('weights/') && f.endsWith('-int8.zip')).toList();
+    final int4File = fileNames
+        .where((f) => f.startsWith('weights/') && f.endsWith('-int4.zip'))
+        .toList();
+    final int8File = fileNames
+        .where((f) => f.startsWith('weights/') && f.endsWith('-int8.zip'))
+        .toList();
 
     if (int4File.isEmpty && int8File.isEmpty) return null;
 
@@ -154,10 +163,8 @@ class HuggingFace {
       key = filename.replaceAll(RegExp(r'-int4\.zip$'), '');
     }
 
-    final capabilities = tags
-        .whereType<String>()
-        .where(_kKnownCapabilities.contains)
-        .toList();
+    final capabilities =
+        tags.whereType<String>().where(_kKnownCapabilities.contains).toList();
 
     String version;
     try {
@@ -180,8 +187,10 @@ class HuggingFace {
         quantization: quant,
       );
 
-      final appleFile = fileNames.where((f) =>
-          f.startsWith('weights/') && f.endsWith('-$quant-apple.zip')).toList();
+      final appleFile = fileNames
+          .where((f) =>
+              f.startsWith('weights/') && f.endsWith('-$quant-apple.zip'))
+          .toList();
 
       CactusProInfo? proInfo;
       if (appleFile.isNotEmpty) {
@@ -219,10 +228,12 @@ class HuggingFace {
     return _RepoParseResult(model: model);
   }
 
-  static Future<int> _fetchFileSize(String repoId, String version, String filename) async {
+  static Future<int> _fetchFileSize(
+      String repoId, String version, String filename) async {
     final client = _createClient();
     try {
-      final uri = Uri.parse('https://huggingface.co/api/models/$repoId/tree/$version/weights');
+      final uri = Uri.parse(
+          'https://huggingface.co/api/models/$repoId/tree/$version/weights');
       final request = await client.getUrl(uri);
       final response = await request.close();
 
@@ -263,7 +274,10 @@ class HuggingFace {
 
   @visibleForTesting
   static List<String> extractCapabilities(List<dynamic> tags) {
-    return tags.whereType<String>().where(_kKnownCapabilities.contains).toList();
+    return tags
+        .whereType<String>()
+        .where(_kKnownCapabilities.contains)
+        .toList();
   }
 }
 

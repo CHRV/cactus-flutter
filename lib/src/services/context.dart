@@ -124,7 +124,9 @@ class CactusContext {
   }) async {
     final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
-    final toolsJson = tools != null ? jsonEncode(tools.map((t) => t.toJson()).toList()) : '[]';
+    final toolsJson = tools != null
+        ? jsonEncode(tools.map((t) => t.toJson()).toList())
+        : '[]';
 
     final resultJson = bindings.cactusComplete(
       _handle,
@@ -211,7 +213,9 @@ class CactusContext {
   }) async {
     final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
-    final toolsJson = tools != null ? jsonEncode(tools.map((t) => t.toJson()).toList()) : '[]';
+    final toolsJson = tools != null
+        ? jsonEncode(tools.map((t) => t.toJson()).toList())
+        : '[]';
 
     final resultJson = bindings.cactusPrefill(
       _handle,
@@ -308,12 +312,14 @@ class CactusContext {
   // Embed text
   // -------------------------------------------------------------------------
 
-  Future<CactusLMEmbedResult> embed(String text, {bool normalize = true}) async {
+  Future<CactusLMEmbedResult> embed(String text,
+      {bool normalize = true}) async {
     final embedding = bindings.cactusEmbed(_handle, text, normalize);
     return CactusLMEmbedResult(embedding: embedding.toList());
   }
 
-  static CactusLMEmbedResult embedWithHandle(int address, String text, bool normalize) {
+  static CactusLMEmbedResult embedWithHandle(
+      int address, String text, bool normalize) {
     final context = CactusContext.fromAddress(address);
     final embedding = bindings.cactusEmbed(context.handle, text, normalize);
     return CactusLMEmbedResult(embedding: embedding.toList());
@@ -328,7 +334,8 @@ class CactusContext {
     return CactusLMImageEmbedResult(embedding: embedding.toList());
   }
 
-  static CactusLMImageEmbedResult imageEmbedWithHandle(int address, String imagePath) {
+  static CactusLMImageEmbedResult imageEmbedWithHandle(
+      int address, String imagePath) {
     final context = CactusContext.fromAddress(address);
     final embedding = bindings.cactusImageEmbed(context.handle, imagePath);
     return CactusLMImageEmbedResult(embedding: embedding.toList());
@@ -343,7 +350,8 @@ class CactusContext {
     return CactusSTTAudioEmbedResult(embedding: embedding.toList());
   }
 
-  static CactusSTTAudioEmbedResult audioEmbedWithHandle(int address, String audioPath) {
+  static CactusSTTAudioEmbedResult audioEmbedWithHandle(
+      int address, String audioPath) {
     final context = CactusContext.fromAddress(address);
     final embedding = bindings.cactusAudioEmbed(context.handle, audioPath);
     return CactusSTTAudioEmbedResult(embedding: embedding.toList());
@@ -357,24 +365,29 @@ class CactusContext {
     final resultJson = bindings.cactusRagQuery(_handle, query, topK);
     final Map<String, dynamic> data = jsonDecode(resultJson);
     final List<dynamic> chunksData = data['chunks'] ?? [];
-    final chunks = chunksData.map((c) => RagQueryChunk(
-      score: c['score']?.toDouble() ?? 0.0,
-      source: c['source'] ?? '',
-      content: c['content'] ?? '',
-    )).toList();
+    final chunks = chunksData
+        .map((c) => RagQueryChunk(
+              score: c['score']?.toDouble() ?? 0.0,
+              source: c['source'] ?? '',
+              content: c['content'] ?? '',
+            ))
+        .toList();
     return CactusLMRagQueryResult(chunks: chunks, error: data['error']);
   }
 
-  static CactusLMRagQueryResult ragQueryWithHandle(int address, String query, int topK) {
+  static CactusLMRagQueryResult ragQueryWithHandle(
+      int address, String query, int topK) {
     final context = CactusContext.fromAddress(address);
     final resultJson = bindings.cactusRagQuery(context.handle, query, topK);
     final Map<String, dynamic> data = jsonDecode(resultJson);
     final List<dynamic> chunksData = data['chunks'] ?? [];
-    final chunks = chunksData.map((c) => RagQueryChunk(
-      score: c['score']?.toDouble() ?? 0.0,
-      source: c['source'] ?? '',
-      content: c['content'] ?? '',
-    )).toList();
+    final chunks = chunksData
+        .map((c) => RagQueryChunk(
+              score: c['score']?.toDouble() ?? 0.0,
+              source: c['source'] ?? '',
+              content: c['content'] ?? '',
+            ))
+        .toList();
     return CactusLMRagQueryResult(chunks: chunks, error: data['error']);
   }
 
@@ -571,7 +584,10 @@ class CactusContext {
       success: data['success'] ?? false,
       error: data['error'],
       numSpeakers: data['num_speakers'] ?? 0,
-      scores: (data['scores'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+      scores: (data['scores'] as List<dynamic>?)
+              ?.map((e) => e.toDouble() as double)
+              .toList() ??
+          [],
       totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
       ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
     );
@@ -613,7 +629,10 @@ class CactusContext {
     return CactusAudioEmbedSpeakerResult(
       success: data['success'] ?? false,
       error: data['error'],
-      embedding: (data['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? [],
+      embedding: (data['embedding'] as List<dynamic>?)
+              ?.map((e) => e.toDouble() as double)
+              .toList() ??
+          [],
       totalTimeMs: data['total_time_ms']?.toDouble() ?? 0.0,
       ramUsageMb: data['ram_usage_mb']?.toDouble() ?? 0.0,
     );
@@ -672,7 +691,8 @@ class CactusContext {
     );
   }
 
-  static CactusSTTStreamTranscribeProcessResult streamTranscribeProcessWithHandle(
+  static CactusSTTStreamTranscribeProcessResult
+      streamTranscribeProcessWithHandle(
     int streamAddress,
     List<int> pcmData,
   ) {
@@ -699,7 +719,8 @@ class CactusContext {
     );
   }
 
-  Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop(int streamAddress) async {
+  Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop(
+      int streamAddress) async {
     final resultJson = bindings.cactusStreamTranscribeStop(
       Pointer.fromAddress(streamAddress),
     );
@@ -710,7 +731,8 @@ class CactusContext {
     );
   }
 
-  static CactusSTTStreamTranscribeStopResult streamTranscribeStopWithHandle(int streamAddress) {
+  static CactusSTTStreamTranscribeStopResult streamTranscribeStopWithHandle(
+      int streamAddress) {
     final resultJson = bindings.cactusStreamTranscribeStop(
       Pointer.fromAddress(streamAddress),
     );
@@ -837,7 +859,8 @@ CactusLMPrefillResult _prefillInIsolate(Map<String, dynamic> params) {
 }
 
 /// Entry point for detectLanguage — runs via compute().
-CactusSTTDetectLanguageResult _detectLanguageInIsolate(Map<String, dynamic> params) {
+CactusSTTDetectLanguageResult _detectLanguageInIsolate(
+    Map<String, dynamic> params) {
   final context = CactusContext.fromAddress(params['handle'] as int);
   final resultJson = bindings.cactusDetectLanguage(
     context.handle,
@@ -900,7 +923,8 @@ CactusAudioDiarizeResult _diarizeInIsolate(Map<String, dynamic> params) {
 }
 
 /// Entry point for embedSpeaker — runs via compute().
-CactusAudioEmbedSpeakerResult _embedSpeakerInIsolate(Map<String, dynamic> params) {
+CactusAudioEmbedSpeakerResult _embedSpeakerInIsolate(
+    Map<String, dynamic> params) {
   final context = CactusContext.fromAddress(params['handle'] as int);
   final resultJson = bindings.cactusEmbedSpeaker(
     context.handle,
@@ -973,7 +997,10 @@ class CactusIndex {
           final r = results[0];
           documents.add(r['document'] ?? '');
           metadatas.add(r['metadata'] ?? '');
-          embeddings.add((r['embedding'] as List<dynamic>?)?.map((e) => e.toDouble() as double).toList() ?? []);
+          embeddings.add((r['embedding'] as List<dynamic>?)
+                  ?.map((e) => e.toDouble() as double)
+                  .toList() ??
+              []);
         } else {
           documents.add('');
           metadatas.add('');

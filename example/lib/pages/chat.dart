@@ -67,19 +67,20 @@ class _ChatPageState extends State<ChatPage> {
         .where((m) => m.message.role != 'typing')
         .map((m) => m.message)
         .toList();
-    debugPrint("Messages to pass: ${messagesToPass.map((m) => "[${m.role}] ${m.content}").join(", ")}");
-    
-    final CactusStreamedCompletionResult res = await cactusLM.generateCompletionStream(
-      messages: messagesToPass
-    );
+    debugPrint(
+        "Messages to pass: ${messagesToPass.map((m) => "[${m.role}] ${m.content}").join(", ")}");
+
+    final CactusStreamedCompletionResult res =
+        await cactusLM.generateCompletionStream(messages: messagesToPass);
 
     await for (final chunk in res.stream) {
       setState(() {
         // Remove typing indicator if it exists
-        if (chatMessages.isNotEmpty && chatMessages.last.message.role == 'typing') {
+        if (chatMessages.isNotEmpty &&
+            chatMessages.last.message.role == 'typing') {
           chatMessages.removeLast();
         }
-        
+
         if (chatMessages.isNotEmpty &&
             chatMessages.last.message.role == 'assistant') {
           chatMessages[chatMessages.length - 1] = ChatMessageWithMetrics(
@@ -104,10 +105,11 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     final result = await res.result;
-    
+
     // Update the last assistant message with metrics
     setState(() {
-      if (chatMessages.isNotEmpty && chatMessages.last.message.role == 'assistant') {
+      if (chatMessages.isNotEmpty &&
+          chatMessages.last.message.role == 'assistant') {
         chatMessages[chatMessages.length - 1] = ChatMessageWithMetrics(
           message: chatMessages.last.message,
           metrics: result,
@@ -116,12 +118,15 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-Future<void> _setupCactusLM() async {
+  Future<void> _setupCactusLM() async {
     if (selectedModel == null) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     cactusLM = CactusLM(
       model: selectedModel!.slug,
-      options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      options:
+          CactusModelOptions(quantization: selectedQuantization, pro: usePro),
     );
     try {
       await cactusLM.download(model: selectedModel!.slug);
@@ -160,9 +165,15 @@ Future<void> _setupCactusLM() async {
           ModelSelectorWidget(
             initialModel: 'qwen3-0.6b',
             capabilityFilter: 'completion',
-            onModelSelected: (model) => setState(() { selectedModel = model; }),
-            onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
-            onProChanged: (p) => setState(() { usePro = p; }),
+            onModelSelected: (model) => setState(() {
+              selectedModel = model;
+            }),
+            onQuantizationChanged: (q) => setState(() {
+              selectedQuantization = q;
+            }),
+            onProChanged: (p) => setState(() {
+              usePro = p;
+            }),
           ),
           if (!_isSetup) ...[
             const Spacer(),
@@ -178,109 +189,112 @@ Future<void> _setupCactusLM() async {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: selectedModel != null && !_isLoading ? _setupCactusLM : null,
+                    onPressed: selectedModel != null && !_isLoading
+                        ? _setupCactusLM
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                     ),
                     child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Setup Chat'),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Setup Chat'),
                   ),
                 ],
               ),
             ),
             const Spacer(),
           ] else ...[
-          Expanded(
-            child: chatMessages.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Start a conversation',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: chatMessages.length,
-                    itemBuilder: (context, index) {
-                      final messageWithMetrics = chatMessages[index];
-                      return _MessageBubble(
-                        message: messageWithMetrics.message,
-                        result: messageWithMetrics.metrics,
-                      );
-                    },
-                  ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Ask anything...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
+            Expanded(
+              child: chatMessages.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat_bubble, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'Start a conversation',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
-                          filled: true,
-                          fillColor: Colors.grey.shade200,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                        onSubmitted: (_) => sendMessage(),
+                        ],
                       ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: chatMessages.length,
+                      itemBuilder: (context, index) {
+                        final messageWithMetrics = chatMessages[index];
+                        return _MessageBubble(
+                          message: messageWithMetrics.message,
+                          result: messageWithMetrics.metrics,
+                        );
+                      },
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _isLoading ? null : sendMessage,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.black,
-                                ),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.arrow_circle_right,
-                              color: Colors.black,
-                              size: 40,
-                            ),
-                    ),
-                  ],
-                ),
-              ],
             ),
-          ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: 'Ask anything...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade200,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                          ),
+                          onSubmitted: (_) => sendMessage(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _isLoading ? null : sendMessage,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.black,
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.arrow_circle_right,
+                                color: Colors.black,
+                                size: 40,
+                              ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -347,7 +361,7 @@ class _AssistantMessageBubble extends StatefulWidget {
 class _AssistantMessageBubbleState extends State<_AssistantMessageBubble> {
   bool _showThinking = false;
 
-String _cleanContent(String content) {
+  String _cleanContent(String content) {
     // Remove <|im_end|> and similar end tokens
     String cleaned = content
         .replaceAll(RegExp(r'<\|im_end\|>'), '')
@@ -367,16 +381,15 @@ String _cleanContent(String content) {
 
     if (thinkingMatch != null) {
       final thinking = thinkingMatch.group(1)?.trim() ?? '';
-      final response = content
-          .replaceAll(RegExp(r'`{3}.*?`{3}', dotAll: true), '')
-          .trim();
+      final response =
+          content.replaceAll(RegExp(r'`{3}.*?`{3}', dotAll: true), '').trim();
       return {'thinking': thinking, 'response': _cleanContent(response)};
     }
 
     return {'thinking': '', 'response': _cleanContent(content)};
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     final parsedContent = _parseThinkingContent(widget.message.content ?? '');
     final hasThinking = parsedContent['thinking']!.isNotEmpty;
@@ -548,7 +561,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                     final scale = value < 0.5
                         ? 1.0 + (value * 0.6)
                         : 1.3 - ((value - 0.5) * 0.6);
-                    
+
                     return Container(
                       margin: EdgeInsets.symmetric(horizontal: 2),
                       child: Transform.scale(

@@ -1,10 +1,11 @@
 import 'package:cactus/src/services/bindings.dart' as bindings;
 
 class CactusConfig {
-
   static const String _defaultHuggingFaceOrg = 'Cactus-Compute';
   static String? _customHuggingFaceOrg;
-  static String get huggingFaceOrg => _customHuggingFaceOrg?.isNotEmpty == true ? _customHuggingFaceOrg! : _defaultHuggingFaceOrg;
+  static String get huggingFaceOrg => _customHuggingFaceOrg?.isNotEmpty == true
+      ? _customHuggingFaceOrg!
+      : _defaultHuggingFaceOrg;
 
   static setHuggingFaceOrg(String org) {
     _customHuggingFaceOrg = org.isEmpty ? null : org;

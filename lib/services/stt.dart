@@ -40,12 +40,15 @@ class CactusSTT {
     return '${dir.path}/models/${getModelName()}';
   }
 
-  Future<void> download({String? model, CactusProgressCallback? onProgress}) async {
+  Future<void> download(
+      {String? model, CactusProgressCallback? onProgress}) async {
     if (_isDownloading) return;
     _isDownloading = true;
     try {
       final effectiveModel = model ?? this.model;
-      if (await DownloadService.modelExists('$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}')) return;
+      if (await DownloadService.modelExists(
+          '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}'))
+        return;
 
       final currentModel = await HuggingFace.getModel(effectiveModel);
       if (currentModel == null) {
@@ -65,12 +68,12 @@ class CactusSTT {
         downloadUrl = quantInfo.url;
       }
 
-      final actualFilename =
-          downloadUrl.split('?').first.split('/').last;
+      final actualFilename = downloadUrl.split('?').first.split('/').last;
       final task = DownloadTask(
         url: downloadUrl,
         filename: actualFilename,
-        folder: '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}',
+        folder:
+            '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}',
       );
 
       final success =
@@ -97,8 +100,7 @@ class CactusSTT {
 
     if (_context == null &&
         !await DownloadService.modelExists(getModelName())) {
-      debugPrint(
-          'Failed to initialize model at $modelPath, downloading...');
+      debugPrint('Failed to initialize model at $modelPath, downloading...');
       await download();
       return init();
     }
@@ -110,14 +112,16 @@ class CactusSTT {
     _isInitialized = true;
   }
 
-  Future<void> initializeModel({String? model, CactusInitParams? params}) => init();
+  Future<void> initializeModel({String? model, CactusInitParams? params}) =>
+      init();
 
   Future<void> downloadModel({
     required String model,
     String? quantization,
     bool pro = false,
     CactusProgressCallback? onProgress,
-  }) => download(onProgress: onProgress);
+  }) =>
+      download(onProgress: onProgress);
 
   void unload() {
     _context?.destroy();
@@ -127,7 +131,9 @@ class CactusSTT {
 
   Future<List<VoiceModel>> getVoiceModels() async {
     final registry = await HuggingFace.getRegistry();
-    return registry.values.where((m) => m.capabilities.contains('transcription')).toList();
+    return registry.values
+        .where((m) => m.capabilities.contains('transcription'))
+        .toList();
   }
 
   /// Transcribe via isolated FFI call. Uses Isolate.spawn because
@@ -180,7 +186,8 @@ class CactusSTT {
       final result = await transcribe(audio: audioFilePath, onToken: onToken);
       return CactusTranscriptionResult(text: result.text, isFinal: true);
     }
-    final result = await transcribe(audio: audioStream ?? audio, onToken: onToken);
+    final result =
+        await transcribe(audio: audioStream ?? audio, onToken: onToken);
     return CactusTranscriptionResult(text: result.text, isFinal: true);
   }
 
@@ -288,8 +295,7 @@ class CactusSTT {
       try {
         await streamTranscribeStop();
       } catch (e) {
-        debugPrint(
-            'Error stopping stream transcription during destroy: $e');
+        debugPrint('Error stopping stream transcription during destroy: $e');
       }
     }
     _context?.destroy();
@@ -300,8 +306,9 @@ class CactusSTT {
 
   Future<List<CactusModel>> getModels() async {
     final allModels = await HuggingFace.fetchModels();
-    final sttModels =
-        allModels.where((m) => m.capabilities.contains('transcription')).toList();
+    final sttModels = allModels
+        .where((m) => m.capabilities.contains('transcription'))
+        .toList();
     for (var m in sttModels) {
       m.isDownloaded = await DownloadService.modelExists(m.slug);
     }
@@ -329,8 +336,7 @@ CactusSTTStreamTranscribeStopResult _streamTranscribeStopInIsolate(
   );
 }
 
-CactusSTTAudioEmbedResult _audioEmbedInIsolate(
-    Map<String, dynamic> params) {
+CactusSTTAudioEmbedResult _audioEmbedInIsolate(Map<String, dynamic> params) {
   return CactusContext.audioEmbedWithHandle(
     params['handle'] as int,
     params['audioPath'] as String,

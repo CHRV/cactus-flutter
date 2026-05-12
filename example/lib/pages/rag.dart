@@ -22,7 +22,8 @@ class _RAGPageState extends State<RAGPage> {
   bool isDownloading = false;
   bool isInitializing = false;
   bool isSearching = false;
-  String outputText = 'Ready to start. Select a model and click "Download Model" to begin.';
+  String outputText =
+      'Ready to start. Select a model and click "Download Model" to begin.';
   List<ChunkSearchResult> searchResults = [];
   CactusModel? selectedModel;
   String selectedQuantization = 'int4';
@@ -42,9 +43,12 @@ class _RAGPageState extends State<RAGPage> {
     _corpusDir = '${dir.path}/corpus/test-rag';
     await Directory(_corpusDir!).create(recursive: true);
 
-    await File('${_corpusDir!}/doc1.txt').writeAsString('The quick brown fox jumps over the lazy dog.');
-    await File('${_corpusDir!}/doc2.txt').writeAsString('Machine learning enables computers to learn from data.');
-    await File('${_corpusDir!}/doc3.txt').writeAsString('The capital of France is Paris.');
+    await File('${_corpusDir!}/doc1.txt')
+        .writeAsString('The quick brown fox jumps over the lazy dog.');
+    await File('${_corpusDir!}/doc2.txt').writeAsString(
+        'Machine learning enables computers to learn from data.');
+    await File('${_corpusDir!}/doc3.txt')
+        .writeAsString('The capital of France is Paris.');
   }
 
   Future<void> download() async {
@@ -60,7 +64,8 @@ class _RAGPageState extends State<RAGPage> {
       _lm ??= CactusLM(
         model: selectedModel!.slug,
         corpusDir: _corpusDir,
-        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options:
+            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -81,7 +86,8 @@ class _RAGPageState extends State<RAGPage> {
       );
       setState(() {
         isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText =
+            'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
       setState(() {
@@ -105,7 +111,8 @@ class _RAGPageState extends State<RAGPage> {
       await lm.initializeModel();
       setState(() {
         isModelLoaded = true;
-        outputText = 'Model initialized successfully! You can now run RAG queries.';
+        outputText =
+            'Model initialized successfully! You can now run RAG queries.';
       });
     } catch (e) {
       setState(() {
@@ -144,11 +151,13 @@ class _RAGPageState extends State<RAGPage> {
 
       setState(() {
         if (result.chunks.isNotEmpty) {
-          searchResults = result.chunks.map((c) => ChunkSearchResult(
-            text: c.content,
-            score: c.score,
-            metadata: {'source': c.source},
-          )).toList();
+          searchResults = result.chunks
+              .map((c) => ChunkSearchResult(
+                    text: c.content,
+                    score: c.score,
+                    metadata: {'source': c.source},
+                  ))
+              .toList();
           outputText = 'Found ${result.chunks.length} relevant chunks!';
         } else {
           searchResults = [];
@@ -182,9 +191,15 @@ class _RAGPageState extends State<RAGPage> {
           ModelSelectorWidget(
             initialModel: 'qwen3-embedding-0.6b',
             capabilityFilter: 'embed',
-            onModelSelected: (model) => setState(() { selectedModel = model; }),
-            onQuantizationChanged: (q) => setState(() { selectedQuantization = q; }),
-            onProChanged: (p) => setState(() { usePro = p; }),
+            onModelSelected: (model) => setState(() {
+              selectedModel = model;
+            }),
+            onQuantizationChanged: (q) => setState(() {
+              selectedQuantization = q;
+            }),
+            onProChanged: (p) => setState(() {
+              usePro = p;
+            }),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -200,9 +215,12 @@ class _RAGPageState extends State<RAGPage> {
                         children: [
                           Text(
                             "RAG (Retrieval-Augmented Generation) Demo",
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -229,14 +247,17 @@ class _RAGPageState extends State<RAGPage> {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               ),
                               SizedBox(width: 8),
                               Text('Downloading...'),
                             ],
                           )
-                        : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
+                        : Text(isModelDownloaded
+                            ? 'Model Downloaded ✓'
+                            : 'Download Model'),
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
@@ -254,14 +275,17 @@ class _RAGPageState extends State<RAGPage> {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               ),
                               SizedBox(width: 8),
                               Text('Initializing...'),
                             ],
                           )
-                        : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
+                        : Text(isModelLoaded
+                            ? 'Model Initialized ✓'
+                            : 'Initialize Model'),
                   ),
                   const SizedBox(height: 20),
                   TextField(
@@ -285,7 +309,12 @@ class _RAGPageState extends State<RAGPage> {
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: (isDownloading || isInitializing || isSearching || !isModelLoaded) ? null : searchDocuments,
+                    onPressed: (isDownloading ||
+                            isInitializing ||
+                            isSearching ||
+                            !isModelLoaded)
+                        ? null
+                        : searchDocuments,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -299,7 +328,8 @@ class _RAGPageState extends State<RAGPage> {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               ),
                               SizedBox(width: 8),
@@ -312,7 +342,9 @@ class _RAGPageState extends State<RAGPage> {
                   Text(
                     'Status: $outputText',
                     style: TextStyle(
-                      color: outputText.contains('Error') ? Colors.red : Colors.black,
+                      color: outputText.contains('Error')
+                          ? Colors.red
+                          : Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -320,7 +352,10 @@ class _RAGPageState extends State<RAGPage> {
                   if (searchResults.isNotEmpty) ...[
                     const Text(
                       'Search Results:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black),
                     ),
                     const SizedBox(height: 10),
                     ListView.builder(
@@ -335,7 +370,8 @@ class _RAGPageState extends State<RAGPage> {
                           margin: const EdgeInsets.only(bottom: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
-                            side: const BorderSide(color: Colors.grey, width: 0.5),
+                            side: const BorderSide(
+                                color: Colors.grey, width: 0.5),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(12),
@@ -343,14 +379,18 @@ class _RAGPageState extends State<RAGPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  (result.metadata?['source'] as String?) ?? 'Unknown Source',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                                  (result.metadata?['source'] as String?) ??
+                                      'Unknown Source',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   result.text,
-                                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                                  style: const TextStyle(
+                                      fontSize: 14, color: Colors.black),
                                 ),
                               ],
                             ),
