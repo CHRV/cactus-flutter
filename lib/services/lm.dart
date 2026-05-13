@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/context.dart';
-import 'package:cactus/src/services/api/huggingface.dart';
-import 'package:cactus/src/utils/models/download.dart';
+import 'package:cactus/utils/async_lock.dart';
+import 'package:cactus/utils/model_utils.dart';
+import 'package:cactus/context.dart';
+import 'package:cactus/services/api/huggingface.dart';
+import 'package:cactus/utils/models/download.dart';
 import 'package:cactus/services/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,7 +31,7 @@ class CactusLM {
   static const _defaultCompleteOptions =
       CactusLMCompleteOptions(maxTokens: 512);
 
-  final _handleLock = _AsyncLock();
+  final _handleLock = AsyncLock();
 
   CactusLM({
     String? model,
@@ -46,9 +48,9 @@ class CactusLM {
         );
 
   Future<String> _resolveModelPath() async {
-    if (_isModelPath(model)) return model.replaceFirst('file://', '');
+    if (isModelPath(model)) return model.replaceFirst('file://', '');
     final dir = await getApplicationDocumentsDirectory();
-    return '${dir.path}/models/${getModelName()}';
+    return '${dir.path}/models/${modelName(model, options)}';
   }
 
   Future<void> download({
@@ -65,7 +67,7 @@ class CactusLM {
         ? '$effectiveModel-$effectiveQuant-pro'
         : '$effectiveModel-$effectiveQuant';
 
-    if (_isModelPath(effectiveModel)) return;
+    if (isModelPath(effectiveModel)) return;
     if (_isDownloading) throw CactusException('Already downloading');
     _isDownloading = true;
     try {
@@ -112,7 +114,7 @@ class CactusLM {
     if (_isInitialized) return;
 
     String modelPath;
-    if (_isModelPath(model)) {
+    if (isModelPath(model)) {
       modelPath = model.replaceFirst('file://', '');
     } else {
       if (!await DownloadService.modelExists(getModelName())) {
@@ -171,7 +173,7 @@ class CactusLM {
             jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
         return CactusContext.completeAt(
-          handleAddress: _context!.handle.address,
+          handleAddress: _context!.address,
           messagesJson: messagesJson,
           optionsJson: optionsJson,
           toolsJson: toolsJson,
@@ -248,7 +250,7 @@ class CactusLM {
             jsonEncode(tools?.map((t) => t.toJson()).toList() ?? []);
 
         return CactusContext.prefillAt(
-          handleAddress: _context!.handle.address,
+          handleAddress: _context!.address,
           messagesJson: messagesJson,
           optionsJson: optionsJson,
           toolsJson: toolsJson,
@@ -265,7 +267,7 @@ class CactusLM {
     if (_context == null) throw CactusException('Model not initialized');
 
     return compute(_tokenizeInIsolate, {
-      'handle': _context!.handle.address,
+      'handle': _context!.address,
       'text': text,
     });
   }
@@ -280,7 +282,7 @@ class CactusLM {
     if (_context == null) throw CactusException('Model not initialized');
 
     return compute(_scoreWindowInIsolate, {
-      'handle': _context!.handle.address,
+      'handle': _context!.address,
       'tokens': tokens,
       'start': start,
       'end': end,
@@ -300,7 +302,7 @@ class CactusLM {
       if (_context == null) throw CactusException('Model not initialized');
 
       return compute(_embedInIsolate, {
-        'handle': _context!.handle.address,
+        'handle': _context!.address,
         'text': text,
         'normalize': normalize,
       });
@@ -323,7 +325,7 @@ class CactusLM {
       if (_context == null) throw CactusException('Model not initialized');
 
       return compute(_imageEmbedInIsolate, {
-        'handle': _context!.handle.address,
+        'handle': _context!.address,
         'imagePath': imagePath,
       });
     });
@@ -337,7 +339,7 @@ class CactusLM {
     if (_context == null) throw CactusException('Model not initialized');
 
     return compute(_ragQueryInIsolate, {
-      'handle': _context!.handle.address,
+      'handle': _context!.address,
       'query': query,
       'topK': topK,
     });
@@ -360,10 +362,7 @@ class CactusLM {
     return models;
   }
 
-  String getModelName() =>
-      '$model-${options.quantization}${options.pro ? '-pro' : ''}';
-
-  bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
+  String getModelName() => modelName(model, options);
 }
 
 CactusLMTokenizeResult _tokenizeInIsolate(Map<String, dynamic> params) {
@@ -404,24 +403,4 @@ CactusLMRagQueryResult _ragQueryInIsolate(Map<String, dynamic> params) {
     params['query'] as String,
     params['topK'] as int,
   );
-}
-
-class _AsyncLock {
-  Completer<void>? _completer;
-
-  Future<T> synchronized<T>(Future<T> Function() fn) async {
-    while (_completer != null) {
-      await _completer!.future;
-    }
-
-    _completer = Completer<void>();
-
-    try {
-      return await fn();
-    } finally {
-      final completer = _completer;
-      _completer = null;
-      completer?.complete();
-    }
-  }
 }

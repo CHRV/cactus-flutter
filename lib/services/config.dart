@@ -1,4 +1,4 @@
-import 'package:cactus/src/services/bindings.dart' as bindings;
+import 'package:cactus/services/bindings.dart' as bindings;
 
 class CactusConfig {
   static const String _defaultHuggingFaceOrg = 'Cactus-Compute';

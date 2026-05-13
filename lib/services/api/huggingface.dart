@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:cactus/models/types.dart';
 import 'package:cactus/services/config.dart';
-import 'package:cactus/src/version.dart';
+import 'package:cactus/version.dart';
 import 'package:flutter/foundation.dart';
 
 const _kKnownCapabilities = <String>{

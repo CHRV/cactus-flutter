@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/context.dart';
-import 'package:cactus/src/services/api/huggingface.dart';
-import 'package:cactus/src/utils/models/download.dart';
+import 'package:cactus/context.dart';
+import 'package:cactus/services/api/huggingface.dart';
+import 'package:cactus/utils/models/download.dart';
+import 'package:cactus/utils/async_lock.dart';
+import 'package:cactus/utils/model_utils.dart';
 import 'package:cactus/services/config.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -19,7 +21,7 @@ class CactusAudio {
   static const String _defaultModel = 'silero-vad';
   static const _defaultQuantization = 'int8';
 
-  final _handleLock = _AsyncLock();
+  final _handleLock = AsyncLock();
 
   CactusAudio({String? model, CactusModelOptions? options})
       : model = model ?? _defaultModel,
@@ -29,13 +31,13 @@ class CactusAudio {
         );
 
   Future<String> _resolveModelPath() async {
-    if (_isModelPath(model)) return model;
+    if (isModelPath(model)) return model.replaceFirst('file://', '');
     final dir = await getApplicationDocumentsDirectory();
-    return '${dir.path}/models/${getModelName()}';
+    return '${dir.path}/models/${modelName(model, options)}';
   }
 
   Future<void> download({CactusProgressCallback? onProgress}) async {
-    if (_isModelPath(model)) return;
+    if (isModelPath(model)) return;
     if (_isDownloading) throw CactusException('Already downloading');
     _isDownloading = true;
     try {
@@ -82,7 +84,7 @@ class CactusAudio {
     if (_isInitialized) return;
 
     String modelPath;
-    if (_isModelPath(model)) {
+    if (isModelPath(model)) {
       modelPath = model.replaceFirst('file://', '');
     } else {
       if (!await DownloadService.modelExists(getModelName())) {
@@ -192,6 +194,14 @@ class CactusAudio {
     _isInitialized = false;
   }
 
+  Future<void> stop() async {
+    _context?.stop();
+  }
+
+  Future<void> reset() async {
+    _context?.reset();
+  }
+
   Future<List<CactusModel>> getModels() async {
     final registry = await HuggingFace.getRegistry();
     final audioModels = registry.values
@@ -206,28 +216,5 @@ class CactusAudio {
     return audioModels;
   }
 
-  String getModelName() =>
-      '$model-${options.quantization}${options.pro ? '-pro' : ''}';
-
-  bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
-}
-
-class _AsyncLock {
-  Completer<void>? _completer;
-
-  Future<T> synchronized<T>(Future<T> Function() fn) async {
-    while (_completer != null) {
-      await _completer!.future;
-    }
-
-    _completer = Completer<void>();
-
-    try {
-      return await fn();
-    } finally {
-      final completer = _completer;
-      _completer = null;
-      completer?.complete();
-    }
-  }
+  String getModelName() => modelName(model, options);
 }

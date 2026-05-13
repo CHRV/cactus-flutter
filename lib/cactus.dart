@@ -7,4 +7,4 @@ export 'services/stt.dart';
 export 'services/audio.dart';
 export 'services/index.dart';
 export 'services/config.dart';
-export 'src/services/api/huggingface.dart';
+export 'services/api/huggingface.dart';

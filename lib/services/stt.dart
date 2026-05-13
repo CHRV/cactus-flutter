@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/context.dart';
-import 'package:cactus/src/services/api/huggingface.dart';
-import 'package:cactus/src/utils/models/download.dart';
+import 'package:cactus/context.dart';
+import 'package:cactus/services/api/huggingface.dart';
+import 'package:cactus/utils/models/download.dart';
+import 'package:cactus/utils/async_lock.dart';
+import 'package:cactus/utils/model_utils.dart';
 import 'package:cactus/services/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -25,7 +27,7 @@ class CactusSTT {
   static const _defaultTranscribeOptions =
       CactusSTTTranscribeOptions(maxTokens: 384);
 
-  final _handleLock = _AsyncLock();
+  final _handleLock = AsyncLock();
 
   CactusSTT({String? model, CactusModelOptions? options})
       : model = model ?? _defaultModel,
@@ -35,9 +37,9 @@ class CactusSTT {
         );
 
   Future<String> _resolveModelPath() async {
-    if (_isModelPath(model)) return model;
+    if (isModelPath(model)) return model.replaceFirst('file://', '');
     final dir = await getApplicationDocumentsDirectory();
-    return '${dir.path}/models/${getModelName()}';
+    return '${dir.path}/models/${modelName(model, options)}';
   }
 
   Future<void> download(
@@ -52,12 +54,12 @@ class CactusSTT {
 
       final currentModel = await HuggingFace.getModel(effectiveModel);
       if (currentModel == null) {
-        throw Exception('Failed to get model $effectiveModel');
+        throw CactusException('Failed to get model $effectiveModel');
       }
 
       final quantInfo = currentModel.quantization[options.quantization];
       if (quantInfo == null) {
-        throw Exception(
+        throw CactusException(
             'Model $effectiveModel does not have ${options.quantization} quantization');
       }
 
@@ -79,7 +81,7 @@ class CactusSTT {
       final success =
           await DownloadService.downloadAndExtractModels([task], onProgress);
       if (!success) {
-        throw Exception(
+        throw CactusException(
             'Failed to download and extract model $effectiveModel from $downloadUrl');
       }
     } finally {
@@ -106,7 +108,7 @@ class CactusSTT {
     }
 
     if (_context == null) {
-      throw Exception('Failed to initialize model at $modelPath');
+      throw CactusException('Failed to initialize model at $modelPath');
     }
 
     _isInitialized = true;
@@ -148,7 +150,7 @@ class CactusSTT {
 
     return _handleLock.synchronized(() async {
       if (_context == null) {
-        throw Exception('Model not initialized');
+        throw CactusException('Model not initialized');
       }
 
       final effectivePrompt = prompt ?? defaultPrompt;
@@ -166,7 +168,7 @@ class CactusSTT {
       }
 
       return CactusContext.transcribeAt(
-        handleAddress: _context!.handle.address,
+        handleAddress: _context!.address,
         audioPath: audioFilePath,
         prompt: effectivePrompt,
         options: effectiveOptions,
@@ -197,7 +199,7 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw Exception('Model not initialized');
+      throw CactusException('Model not initialized');
     }
 
     _streamHandle = _context!.streamTranscribeStart(options: options);
@@ -208,7 +210,7 @@ class CactusSTT {
     required List<int> audio,
   }) async {
     if (!_isStreamTranscribing || _streamHandle == null) {
-      throw Exception(
+      throw CactusException(
           'Stream transcription not started. Call streamTranscribeStart() first.');
     }
 
@@ -220,7 +222,7 @@ class CactusSTT {
 
   Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop() async {
     if (!_isStreamTranscribing || _streamHandle == null) {
-      throw Exception(
+      throw CactusException(
           'Stream transcription not started. Call streamTranscribeStart() first.');
     }
 
@@ -242,7 +244,7 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw Exception('Model not initialized');
+      throw CactusException('Model not initialized');
     }
 
     String? audioFilePath;
@@ -257,7 +259,7 @@ class CactusSTT {
     }
 
     return CactusContext.detectLanguageAt(
-      handleAddress: _context!.handle.address,
+      handleAddress: _context!.address,
       audioPath: audioFilePath,
       pcmData: pcmData,
       options: options,
@@ -271,11 +273,11 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw Exception('Model not initialized');
+      throw CactusException('Model not initialized');
     }
 
     return compute(_audioEmbedInIsolate, {
-      'handle': _context!.handle.address,
+      'handle': _context!.address,
       'audioPath': audioPath,
     });
   }
@@ -315,10 +317,7 @@ class CactusSTT {
     return sttModels;
   }
 
-  String getModelName() =>
-      '$model-${options.quantization}${options.pro ? '-pro' : ''}';
-
-  bool _isModelPath(String m) => m.startsWith('/') || m.startsWith('file://');
+  String getModelName() => modelName(model, options);
 }
 
 CactusSTTStreamTranscribeProcessResult _streamTranscribeProcessInIsolate(
@@ -341,24 +340,4 @@ CactusSTTAudioEmbedResult _audioEmbedInIsolate(Map<String, dynamic> params) {
     params['handle'] as int,
     params['audioPath'] as String,
   );
-}
-
-class _AsyncLock {
-  Completer<void>? _completer;
-
-  Future<T> synchronized<T>(Future<T> Function() fn) async {
-    while (_completer != null) {
-      await _completer!.future;
-    }
-
-    _completer = Completer<void>();
-
-    try {
-      return await fn();
-    } finally {
-      final completer = _completer;
-      _completer = null;
-      completer?.complete();
-    }
-  }
 }

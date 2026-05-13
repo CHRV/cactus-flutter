@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/bindings.dart' as bindings;
+import 'package:cactus/services/bindings.dart' as bindings;
 
 List<FunctionCall>? _parseFunctionCalls(Map<String, dynamic> data) {
   final raw = data['function_calls'];

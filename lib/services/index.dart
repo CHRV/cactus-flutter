@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:cactus/models/types.dart';
-import 'package:cactus/src/services/context.dart' as context;
+import 'package:cactus/context.dart' as context;
 import 'package:path_provider/path_provider.dart';
 
 class CactusIndex {
