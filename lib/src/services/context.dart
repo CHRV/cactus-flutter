@@ -8,6 +8,16 @@ import 'package:flutter/foundation.dart';
 import 'package:cactus/models/types.dart';
 import 'package:cactus/src/services/bindings.dart' as bindings;
 
+List<FunctionCall>? _parseFunctionCalls(Map<String, dynamic> data) {
+  final raw = data['function_calls'];
+  if (raw == null) return null;
+  final List<dynamic> calls = raw as List<dynamic>;
+  return calls.map((fc) => FunctionCall(
+    name: fc['name'] as String,
+    arguments: Map<String, dynamic>.from(fc['arguments'] as Map),
+  )).toList();
+}
+
 // ---------------------------------------------------------------------------
 // Isolate message types (all fields are Sendable / primitive)
 // ---------------------------------------------------------------------------
@@ -142,6 +152,7 @@ class CactusContext {
     );
 
     final Map<String, dynamic> data = jsonDecode(resultJson);
+    final functionCalls = _parseFunctionCalls(data);
     return CactusLMCompleteResult(
       success: data['success'] ?? false,
       response: data['response'] ?? '',
@@ -156,6 +167,7 @@ class CactusContext {
       decodeTps: data['decode_tps']?.toDouble() ?? 0.0,
       totalTokens: data['total_tokens'] ?? 0,
       ramUsageMb: data['ram_usage_mb']?.toDouble(),
+      functionCalls: functionCalls,
     );
   }
 
@@ -771,6 +783,7 @@ void _completeInIsolate(_CompleteIsolateArgs args) {
     );
 
     final Map<String, dynamic> data = jsonDecode(resultJson);
+    final functionCalls = _parseFunctionCalls(data);
     args.sendPort.send(
       _CompleteResultMessage(
         CactusLMCompleteResult(
@@ -787,6 +800,7 @@ void _completeInIsolate(_CompleteIsolateArgs args) {
           decodeTps: data['decode_tps']?.toDouble() ?? 0.0,
           totalTokens: data['total_tokens'] ?? 0,
           ramUsageMb: data['ram_usage_mb']?.toDouble(),
+          functionCalls: functionCalls,
         ),
       ),
     );

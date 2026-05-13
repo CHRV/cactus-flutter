@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 const _timeout = Timeout(Duration(minutes: 5));
 const _vadModel = 'silero-vad';
 const _diarizeModel = 'segmentation-3.0';
-const _audioQuant = 'int8';
+const _audioQuant = 'int4';
 
 Future<String> _copyAudioToTemp() async {
   final data = await rootBundle.load('assets/test_audio.wav');

@@ -10,23 +10,12 @@ const _timeout = Timeout(Duration(minutes: 3));
 const _sttModel = 'whisper-tiny';
 const _sttQuant = 'int4';
 
-/// Loads a WAV file from assets and returns raw PCM samples as int16 List.
-Future<List<int>> _loadPcmFromAsset() async {
+Future<Uint8List> _loadPcmFromAsset() async {
   final data = await rootBundle.load('assets/test_audio.wav');
   final bytes = data.buffer.asUint8List();
-  // Standard WAV header is 44 bytes for mono 16-bit PCM
-  // Data starts at byte 44
-  final pcmBytes = bytes.sublist(44);
-  // Convert little-endian int16 bytes to List<int>
-  final samples = <int>[];
-  final buffer = ByteData.view(pcmBytes.buffer);
-  for (var i = 0; i < pcmBytes.lengthInBytes; i += 2) {
-    samples.add(buffer.getInt16(i, Endian.little));
-  }
-  return samples;
+  return bytes.sublist(44);
 }
 
-/// Copies a test audio asset to a temp file and returns the file path.
 Future<String> _copyAudioToTemp() async {
   final data = await rootBundle.load('assets/test_audio.wav');
   final dir = await getApplicationDocumentsDirectory();
@@ -38,6 +27,8 @@ Future<String> _copyAudioToTemp() async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('CactusSTT unit', () {
     test('getModelName returns correct format', () {
       final stt = CactusSTT(model: _sttModel, options: const CactusModelOptions(quantization: _sttQuant));
@@ -87,6 +78,18 @@ void main() {
       expect(result, isNotNull);
     }, timeout: _timeout);
 
+    test('transcribe with PCM data and onToken callback', () async {
+      final tokens = <String>[];
+      final result = await stt.transcribe(
+        audio: pcmData,
+        prompt: CactusSTT.defaultPrompt,
+        onToken: (token) => tokens.add(token),
+      );
+      expect(result, isNotNull);
+      expect(result.success, isTrue);
+      expect(tokens, isNotEmpty);
+    }, timeout: _timeout);
+
     test('transcribe rejects invalid audio type', () {
       expect(
         () => stt.transcribe(audio: 123, prompt: CactusSTT.defaultPrompt),
@@ -115,7 +118,6 @@ void main() {
 
     test('stop halts processing', () async {
       await stt.stop();
-      // Verify we can still use the model after stop
       final result = await stt.transcribe(
         audio: List<int>.filled(16000, 0),
         prompt: CactusSTT.defaultPrompt,

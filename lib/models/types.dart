@@ -50,10 +50,22 @@ class CactusLMTool {
     required this.parameters,
   });
 
+  factory CactusLMTool.fromJson(Map<String, dynamic> json) {
+    final fn = json['function'] as Map<String, dynamic>?;
+    return CactusLMTool(
+      name: (fn?['name'] ?? json['name']) as String,
+      description: (fn?['description'] ?? json['description']) as String,
+      parameters: (fn?['parameters'] ?? json['parameters']) as Map<String, dynamic>,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'parameters': parameters,
+        'type': 'function',
+        'function': {
+          'name': name,
+          'description': description,
+          'parameters': parameters,
+        },
       };
 }
 

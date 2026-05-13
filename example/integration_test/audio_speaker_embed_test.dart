@@ -29,7 +29,7 @@ void main() {
     setUpAll(() async {
       audio = CactusAudio(
         model: _spkModel,
-        options: const CactusModelOptions(quantization: 'int8'),
+        options: const CactusModelOptions(quantization: 'int4'),
       );
       pcmData = await _loadPcmFromAsset();
     });
