@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cactus/cactus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
+import '../widgets/download_panel.dart';
 
 class STTPage extends StatefulWidget {
   const STTPage({super.key});
@@ -30,9 +31,8 @@ class _STTPageState extends State<STTPage> {
   String _outputText =
       "Ready to start. Select a model and initialize to begin.";
   CactusSTTTranscribeResult? _lastResponse;
-  String _downloadProgress = "";
-  double? _downloadPercentage;
   String _streamedText = "";
+  DownloadHandle? _currentSTTDownload;
 
   // Audio buffer for recording
   final List<int> _audioBuffer = [];
@@ -101,38 +101,40 @@ class _STTPageState extends State<STTPage> {
   Future<void> _downloadAndInitializeModel() async {
     setState(() {
       _isDownloading = true;
-      _isInitializing = true;
-      _outputText = "Downloading and initializing model...";
-      _downloadProgress = "Starting download...";
-      _downloadPercentage = null;
+      _outputText = "Downloading model...";
     });
 
     try {
-      // Download the model
-      await _stt.download(
+      final handle = await _stt.download(
         model: _selectedModel,
         onProgress: (progress, message, isError) {
           setState(() {
             if (progress != null) {
-              _downloadPercentage = progress;
-              _downloadProgress = "${(progress * 100).toStringAsFixed(1)}%";
+              _outputText = "Downloading: ${(progress * 100).toStringAsFixed(1)}%";
             } else {
-              _downloadProgress = message;
+              _outputText = message;
             }
           });
         },
       );
-
+      setState(() => _currentSTTDownload = handle);
+    } catch (e) {
       setState(() {
         _isDownloading = false;
-        _downloadProgress = "";
-        _downloadPercentage = null;
-        _outputText = "Model downloaded successfully! Initializing...";
+        _outputText = "Error: ${e.toString()}";
       });
+    }
+  }
 
-      // Initialize the model
+  void _onSTTDownloadCompleted() async {
+    setState(() {
+      _isDownloading = false;
+      _currentSTTDownload = null;
+      _isInitializing = true;
+      _outputText = "Model downloaded! Initializing...";
+    });
+    try {
       await _stt.initializeModel(model: _selectedModel);
-
       setState(() {
         _isInitializing = false;
         _isModelLoaded = true;
@@ -141,13 +143,26 @@ class _STTPageState extends State<STTPage> {
       });
     } catch (e) {
       setState(() {
-        _isDownloading = false;
         _isInitializing = false;
-        _downloadProgress = "";
-        _downloadPercentage = null;
-        _outputText = "Error: ${e.toString()}";
+        _outputText = "Error initializing model: ${e.toString()}";
       });
     }
+  }
+
+  void _onSTTDownloadCancelled() {
+    setState(() {
+      _isDownloading = false;
+      _currentSTTDownload = null;
+      _outputText = 'Download cancelled.';
+    });
+  }
+
+  void _onSTTDownloadFailed() {
+    setState(() {
+      _isDownloading = false;
+      _currentSTTDownload = null;
+      _outputText = 'Download failed.';
+    });
   }
 
   Future<void> _startRecording() async {
@@ -381,51 +396,47 @@ class _STTPageState extends State<STTPage> {
             const SizedBox(height: 8),
 
             // Initialize model button
-            ElevatedButton(
-              onPressed: (_isDownloading ||
-                      _isInitializing ||
-                      _isModelLoaded ||
-                      _isLoadingModels ||
-                      (_voiceModels.isEmpty && !_isUsingDefaultModel))
-                  ? null
-                  : _downloadAndInitializeModel,
-              child: (_isDownloading || _isInitializing)
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            value: _downloadPercentage,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.white),
-                            backgroundColor: Colors.grey.shade300,
-                          ),
+            if (_isDownloading && _currentSTTDownload != null)
+              DownloadPanel(
+                handle: _currentSTTDownload!,
+                onCompleted: _onSTTDownloadCompleted,
+                onCancelled: _onSTTDownloadCancelled,
+                onFailed: _onSTTDownloadFailed,
+              )
+            else if (_isInitializing)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.black),
                         ),
-                        const SizedBox(width: 8),
-                        Text(_downloadProgress.isNotEmpty
-                            ? _downloadProgress
-                            : (_isDownloading
-                                ? 'Downloading...'
-                                : 'Initializing...')),
-                      ],
-                    )
-                  : Text(_isModelLoaded
-                      ? 'Model Ready ✓'
-                      : 'Download & Initialize Model'),
-            ),
-
-            // Show linear progress indicator during download
-            if (_isDownloading && _downloadPercentage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: LinearProgressIndicator(
-                  value: _downloadPercentage,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.black),
-                  backgroundColor: Colors.grey.shade300,
+                      ),
+                      SizedBox(width: 8),
+                      Text('Initializing model...'),
+                    ],
+                  ),
                 ),
+              )
+            else
+              ElevatedButton(
+                onPressed: (_isDownloading ||
+                        _isInitializing ||
+                        _isModelLoaded ||
+                        _isLoadingModels ||
+                        (_voiceModels.isEmpty && !_isUsingDefaultModel))
+                    ? null
+                    : _downloadAndInitializeModel,
+                child: Text(_isModelLoaded
+                    ? 'Model Ready ✓'
+                    : 'Download & Initialize Model'),
               ),
 
             const SizedBox(height: 4),

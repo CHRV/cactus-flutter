@@ -7,6 +7,7 @@ import 'package:cactus/utils/model_utils.dart';
 import 'package:cactus/context.dart';
 import 'package:cactus/services/api/huggingface.dart';
 import 'package:cactus/utils/models/download.dart';
+import 'package:cactus/utils/models/download_state.dart';
 import 'package:cactus/services/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,6 +21,7 @@ class CactusLM {
   bool _isInitialized = false;
   bool _isDownloading = false;
   bool _isGenerating = false;
+  DownloadHandle? _currentDownload;
 
   /// The model identifier (e.g. "qwen3-0.6b").
   final String model;
@@ -72,6 +74,7 @@ class CactusLM {
 
   /// Downloads the model from HuggingFace if not already present locally.
   ///
+  /// Returns a [DownloadHandle] for pause / resume / cancel control.
   /// [model]: Override model identifier. Uses instance [model] if null.
   /// [quantization]: Override quantization level.
   /// [pro]: Whether to use the pro (Apple) variant.
@@ -79,7 +82,7 @@ class CactusLM {
   ///
   /// Throws [CactusException] if a download is already in progress or the
   /// model is not found in the registry.
-  Future<void> download({
+  Future<DownloadHandle> download({
     String? model,
     String? quantization,
     bool? pro,
@@ -93,11 +96,14 @@ class CactusLM {
         ? '$effectiveModel-$effectiveQuant-pro'
         : '$effectiveModel-$effectiveQuant';
 
-    if (isModelPath(effectiveModel)) return;
+    if (isModelPath(effectiveModel)) throw CactusException('Cannot download file:// paths');
     if (_isDownloading) throw CactusException('Already downloading');
     _isDownloading = true;
+
     try {
-      if (await DownloadService.modelExists(modelName)) return;
+      if (await ResumableDownloadService.modelExists(modelName)) {
+        throw CactusException('Model already downloaded');
+      }
 
       final registry = await HuggingFace.getRegistry();
       final modelConfig = registry[effectiveModel];
@@ -119,21 +125,36 @@ class CactusLM {
       }
 
       final actualFilename = downloadUrl.split('?').first.split('/').last;
-      final task = DownloadTask(
+      final handle = await ResumableDownloadService.download(
         url: downloadUrl,
         filename: actualFilename,
         folder: modelName,
+        onProgress: (dp) {
+          onProgress?.call(
+              dp.progress, dp.statusMessage, dp.errorMessage != null);
+          if (dp.status == DownloadStatus.completed) {
+            _isDownloading = false;
+            _currentDownload = null;
+          } else if (dp.status == DownloadStatus.failed ||
+              dp.status == DownloadStatus.cancelled) {
+            _isDownloading = false;
+            _currentDownload = null;
+          }
+        },
       );
-
-      final success =
-          await DownloadService.downloadAndExtractModels([task], onProgress);
-      if (!success) {
-        throw CactusException(
-            'Failed to download model $effectiveModel from $downloadUrl');
-      }
-    } finally {
+      _currentDownload = handle;
+      return handle;
+    } catch (e) {
       _isDownloading = false;
+      rethrow;
     }
+  }
+
+  /// Cancels the current download, if any.
+  void cancelDownload() {
+    _currentDownload?.cancel();
+    _currentDownload = null;
+    _isDownloading = false;
   }
 
   /// Initializes the model context and loads the model into memory.
@@ -147,7 +168,7 @@ class CactusLM {
     if (isModelPath(model)) {
       modelPath = model.replaceFirst('file://', '');
     } else {
-      if (!await DownloadService.modelExists(getModelName())) {
+      if (!await ResumableDownloadService.modelExists(getModelName())) {
         throw CactusException('Model not downloaded. Call download() first.');
       }
       modelPath = await _resolveModelPath();
@@ -448,7 +469,7 @@ class CactusLM {
     final registry = await HuggingFace.getRegistry();
     final models = registry.values.toList();
     for (var m in models) {
-      m.isDownloaded = await DownloadService.modelExists(m.slug);
+      m.isDownloaded = await ResumableDownloadService.modelExists(m.slug);
     }
     return models;
   }

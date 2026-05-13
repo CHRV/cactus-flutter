@@ -4,6 +4,7 @@ import 'package:cactus/models/types.dart';
 import 'package:cactus/context.dart';
 import 'package:cactus/services/api/huggingface.dart';
 import 'package:cactus/utils/models/download.dart';
+import 'package:cactus/utils/models/download_state.dart';
 import 'package:cactus/utils/async_lock.dart';
 import 'package:cactus/utils/model_utils.dart';
 import 'package:cactus/services/config.dart';
@@ -18,6 +19,7 @@ class CactusSTT {
   bool _isInitialized = false;
   bool _isDownloading = false;
   bool _isStreamTranscribing = false;
+  DownloadHandle? _currentDownload;
 
   /// The name of the model (e.g. `whisper-small`).
   final String model;
@@ -56,17 +58,21 @@ class CactusSTT {
 
   /// Downloads the model from Hugging Face.
   ///
+  /// Returns a [DownloadHandle] for pause / resume / cancel control.
   /// [model]: Override model name. Defaults to the instance model.
   /// [onProgress]: Callback for download progress.
-  Future<void> download(
-      {String? model, CactusProgressCallback? onProgress}) async {
-    if (_isDownloading) return;
+  Future<DownloadHandle> download({
+    String? model,
+    CactusProgressCallback? onProgress,
+  }) async {
+    if (_isDownloading) throw CactusException('Already downloading');
     _isDownloading = true;
     try {
       final effectiveModel = model ?? this.model;
-      if (await DownloadService.modelExists(
-          '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}')) {
-        return;
+      final modelName =
+          '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}';
+      if (await ResumableDownloadService.modelExists(modelName)) {
+        throw CactusException('Model already downloaded');
       }
 
       final currentModel = await HuggingFace.getModel(effectiveModel);
@@ -88,22 +94,34 @@ class CactusSTT {
       }
 
       final actualFilename = downloadUrl.split('?').first.split('/').last;
-      final task = DownloadTask(
+      final handle = await ResumableDownloadService.download(
         url: downloadUrl,
         filename: actualFilename,
-        folder:
-            '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}',
+        folder: modelName,
+        onProgress: (dp) {
+          onProgress?.call(
+              dp.progress, dp.statusMessage, dp.errorMessage != null);
+          if (dp.status == DownloadStatus.completed ||
+              dp.status == DownloadStatus.failed ||
+              dp.status == DownloadStatus.cancelled) {
+            _isDownloading = false;
+            _currentDownload = null;
+          }
+        },
       );
-
-      final success =
-          await DownloadService.downloadAndExtractModels([task], onProgress);
-      if (!success) {
-        throw CactusException(
-            'Failed to download and extract model $effectiveModel from $downloadUrl');
-      }
-    } finally {
+      _currentDownload = handle;
+      return handle;
+    } catch (e) {
       _isDownloading = false;
+      rethrow;
     }
+  }
+
+  /// Cancels the current download, if any.
+  void cancelDownload() {
+    _currentDownload?.cancel();
+    _currentDownload = null;
+    _isDownloading = false;
   }
 
   /// Initializes the Cactus context and loads the model.
@@ -121,7 +139,7 @@ class CactusSTT {
     );
 
     if (_context == null &&
-        !await DownloadService.modelExists(getModelName())) {
+        !await ResumableDownloadService.modelExists(getModelName())) {
       debugPrint('Failed to initialize model at $modelPath, downloading...');
       await download();
       return init();
@@ -385,7 +403,7 @@ class CactusSTT {
         .where((m) => m.capabilities.contains('transcription'))
         .toList();
     for (var m in sttModels) {
-      m.isDownloaded = await DownloadService.modelExists(m.slug);
+      m.isDownloaded = await ResumableDownloadService.modelExists(m.slug);
     }
     return sttModels;
   }

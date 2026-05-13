@@ -1,6 +1,7 @@
 import 'package:cactus/cactus.dart';
 import 'package:flutter/material.dart';
 import '../widgets/model_selector.dart';
+import '../widgets/download_panel.dart';
 
 class StreamingCompletionPage extends StatefulWidget {
   const StreamingCompletionPage({super.key});
@@ -20,6 +21,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
   bool isGenerating = false;
   bool isStreaming = false;
   String outputText = 'Ready to start. Click "Download Model" to begin.';
+  DownloadHandle? _currentDownload;
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
@@ -47,7 +49,7 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.download(
+      final handle = await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
         pro: usePro,
@@ -62,15 +64,38 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
           });
         },
       );
-      setState(() {
-        isModelDownloaded = true;
-        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
-      });
+      setState(() => _currentDownload = handle);
     } catch (e) {
-      setState(() => outputText = 'Error downloading model: $e');
-    } finally {
-      setState(() => isDownloading = false);
+      setState(() {
+        isDownloading = false;
+        outputText = 'Error downloading model: $e';
+      });
     }
+  }
+
+  void _onDownloadCompleted() {
+    setState(() {
+      isDownloading = false;
+      _currentDownload = null;
+      isModelDownloaded = true;
+      outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
+    });
+  }
+
+  void _onDownloadCancelled() {
+    setState(() {
+      isDownloading = false;
+      _currentDownload = null;
+      outputText = 'Download cancelled.';
+    });
+  }
+
+  void _onDownloadFailed() {
+    setState(() {
+      isDownloading = false;
+      _currentDownload = null;
+      outputText = 'Download failed.';
+    });
   }
 
   Future<void> initializeModel() async {
@@ -186,23 +211,31 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
               onProChanged: (p) => setState(() => usePro = p),
             ),
             const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: (isDownloading || selectedModel == null) ? null : download,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
+            if (isDownloading && _currentDownload != null)
+              DownloadPanel(
+                handle: _currentDownload!,
+                onCompleted: _onDownloadCompleted,
+                onCancelled: _onDownloadCancelled,
+                onFailed: _onDownloadFailed,
+              )
+            else
+              ElevatedButton(
+                onPressed: (isDownloading || selectedModel == null) ? null : download,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                ),
+                child: isDownloading
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                          SizedBox(width: 8),
+                          Text('Starting download...'),
+                        ],
+                      )
+                    : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
               ),
-              child: isDownloading
-                  ? const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
-                        SizedBox(width: 8),
-                        Text('Downloading...'),
-                      ],
-                    )
-                  : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
-            ),
             const SizedBox(height: 10),
             ElevatedButton(
               onPressed: (isInitializing || isDownloading || selectedModel == null) ? null : initializeModel,

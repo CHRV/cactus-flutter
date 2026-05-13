@@ -12,3 +12,4 @@ export 'services/audio.dart';
 export 'services/index.dart';
 export 'services/config.dart';
 export 'services/api/huggingface.dart';
+export 'utils/models/download_state.dart';

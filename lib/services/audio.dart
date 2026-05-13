@@ -5,6 +5,7 @@ import 'package:cactus/models/types.dart';
 import 'package:cactus/context.dart';
 import 'package:cactus/services/api/huggingface.dart';
 import 'package:cactus/utils/models/download.dart';
+import 'package:cactus/utils/models/download_state.dart';
 import 'package:cactus/utils/async_lock.dart';
 import 'package:cactus/utils/model_utils.dart';
 import 'package:cactus/services/config.dart';
@@ -16,6 +17,7 @@ class CactusAudio {
   CactusContext? _context;
   bool _isInitialized = false;
   bool _isDownloading = false;
+  DownloadHandle? _currentDownload;
 
   /// The model identifier or file path used by this instance.
   final String model;
@@ -47,15 +49,18 @@ class CactusAudio {
 
   /// Downloads the model from Hugging Face if not already cached.
   ///
+  /// Returns a [DownloadHandle] for pause / resume / cancel control.
   /// [onProgress]: optional callback invoked with download progress.
   /// Throws [CactusException] if a download is already in progress or the
   /// model is not found in the registry.
-  Future<void> download({CactusProgressCallback? onProgress}) async {
-    if (isModelPath(model)) return;
+  Future<DownloadHandle> download({CactusProgressCallback? onProgress}) async {
+    if (isModelPath(model)) throw CactusException('Cannot download file:// paths');
     if (_isDownloading) throw CactusException('Already downloading');
     _isDownloading = true;
     try {
-      if (await DownloadService.modelExists(getModelName())) return;
+      if (await ResumableDownloadService.modelExists(getModelName())) {
+        throw CactusException('Model already downloaded');
+      }
 
       final registry = await HuggingFace.getRegistry();
       final modelConfig = registry[model];
@@ -77,21 +82,34 @@ class CactusAudio {
       }
 
       final actualFilename = downloadUrl.split('?').first.split('/').last;
-      final task = DownloadTask(
+      final handle = await ResumableDownloadService.download(
         url: downloadUrl,
         filename: actualFilename,
         folder: getModelName(),
+        onProgress: (dp) {
+          onProgress?.call(
+              dp.progress, dp.statusMessage, dp.errorMessage != null);
+          if (dp.status == DownloadStatus.completed ||
+              dp.status == DownloadStatus.failed ||
+              dp.status == DownloadStatus.cancelled) {
+            _isDownloading = false;
+            _currentDownload = null;
+          }
+        },
       );
-
-      final success =
-          await DownloadService.downloadAndExtractModels([task], onProgress);
-      if (!success) {
-        throw CactusException(
-            'Failed to download model $model from $downloadUrl');
-      }
-    } finally {
+      _currentDownload = handle;
+      return handle;
+    } catch (e) {
       _isDownloading = false;
+      rethrow;
     }
+  }
+
+  /// Cancels the current download, if any.
+  void cancelDownload() {
+    _currentDownload?.cancel();
+    _currentDownload = null;
+    _isDownloading = false;
   }
 
   /// Initializes the underlying native model context.
@@ -105,7 +123,7 @@ class CactusAudio {
     if (isModelPath(model)) {
       modelPath = model.replaceFirst('file://', '');
     } else {
-      if (!await DownloadService.modelExists(getModelName())) {
+      if (!await ResumableDownloadService.modelExists(getModelName())) {
         throw CactusException('Model not downloaded. Call download() first.');
       }
       modelPath = await _resolveModelPath();
@@ -251,7 +269,7 @@ class CactusAudio {
             m.capabilities.contains('speaker-embed'))
         .toList();
     for (var m in audioModels) {
-      m.isDownloaded = await DownloadService.modelExists(m.slug);
+      m.isDownloaded = await ResumableDownloadService.modelExists(m.slug);
     }
     return audioModels;
   }
