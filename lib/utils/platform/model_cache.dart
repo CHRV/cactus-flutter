@@ -4,9 +4,14 @@ import 'package:cactus/models/types.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Caches [CactusModel] instances to [SharedPreferences] for offline access.
 class ModelCache {
   static const String _modelKey = 'cactus_model';
 
+  /// Persists [model] to shared preferences keyed by its slug.
+  ///
+  /// [model]: The model to cache.
+  /// Throws: Propagates any error during serialization or storage.
   static Future<void> saveModel(CactusModel model) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -18,6 +23,11 @@ class ModelCache {
     }
   }
 
+  /// Loads a previously cached model by [slug].
+  ///
+  /// [slug]: The unique slug identifying the model.
+  /// Returns: The deserialized [CactusModel], or `null` if not found or
+  ///   deserialization fails.
   static Future<CactusModel?> loadModel(String slug) async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -3,8 +3,13 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 
+/// An opaque pointer to a native Cactus model.
 typedef CactusModelT = Pointer<Void>;
+
+/// An opaque pointer to a native Cactus vector index.
 typedef CactusIndexT = Pointer<Void>;
+
+/// An opaque pointer to a native Cactus streaming transcription session.
 typedef CactusStreamTranscribeT = Pointer<Void>;
 
 typedef TokenCallbackNative = Void Function(
@@ -507,6 +512,7 @@ final _cactusLogSetCallback =
 
 final class Utf8 extends Opaque {}
 
+/// Converts a Dart [String] to a null-terminated UTF-8 [Pointer<Utf8>].
 extension Utf8Pointer on String {
   Pointer<Utf8> toNativeUtf8({Allocator allocator = malloc}) {
     final units = utf8.encode(this);
@@ -518,6 +524,7 @@ extension Utf8Pointer on String {
   }
 }
 
+/// Converts a null-terminated UTF-8 [Pointer<Utf8>] to a Dart [String].
 extension Utf8PointerExtension on Pointer<Utf8> {
   String toDartString() {
     if (this == nullptr) return '';
@@ -582,12 +589,12 @@ void _ensureFramework() {
   }
 }
 
-/// Returns the last error message.
+/// Returns the last error message from the native library.
 String cactusGetLastError() {
   return _cactusGetLastError().toDartString();
 }
 
-/// Sets the telemetry cache directory.
+/// Sets the telemetry cache directory path.
 void cactusSetTelemetryEnvironment(String cacheLocation) {
   _ensureFramework();
   final pathPtr = cacheLocation.toNativeUtf8();
@@ -595,14 +602,14 @@ void cactusSetTelemetryEnvironment(String cacheLocation) {
   calloc.free(pathPtr);
 }
 
-/// Sets the application identifier for telemetry.
+/// Sets the application identifier reported in telemetry events.
 void cactusSetAppId(String appId) {
   final appIdPtr = appId.toNativeUtf8();
   _cactusSetAppId(appIdPtr);
   calloc.free(appIdPtr);
 }
 
-/// Flushes pending telemetry events.
+/// Flushes all pending telemetry events to the backend.
 void cactusTelemetryFlush() {
   _cactusTelemetryFlush();
 }
@@ -612,7 +619,10 @@ void cactusTelemetryShutdown() {
   _cactusTelemetryShutdown();
 }
 
-/// Initializes a model from the given path.
+/// Initializes a Cactus model from the given [modelPath].
+///
+/// Optionally loads a [corpusDir] for RAG and controls index caching with
+/// [cacheIndex]. Returns a [CactusModelT] handle.
 CactusModelT cactusInit(String modelPath, String? corpusDir, bool cacheIndex) {
   _ensureFramework();
   final modelPathPtr = modelPath.toNativeUtf8();
@@ -629,12 +639,12 @@ CactusModelT cactusInit(String modelPath, String? corpusDir, bool cacheIndex) {
   }
 }
 
-/// Frees all model resources.
+/// Frees all resources associated with a model handle.
 void cactusDestroy(CactusModelT model) {
   _cactusDestroy(model);
 }
 
-/// Clears the KV cache.
+/// Clears the KV cache on the model.
 void cactusReset(CactusModelT model) {
   _cactusReset(model);
 }
@@ -644,7 +654,11 @@ void cactusStop(CactusModelT model) {
   _cactusStop(model);
 }
 
-/// Runs chat completion. Returns the assistant response.
+/// Runs chat completion. Returns the assistant response as JSON.
+///
+/// Accepts serialized JSON for [messagesJson], [optionsJson], and [toolsJson].
+/// Provide [onToken] for streaming token callbacks and [pcmData] for
+/// multimodal audio input.
 String cactusComplete(
   CactusModelT model,
   String messagesJson,
@@ -705,7 +719,7 @@ String cactusComplete(
   }
 }
 
-/// Prefills the KV cache with messages.
+/// Prefills the KV cache with messages without generating a response.
 String cactusPrefill(
   CactusModelT model,
   String messagesJson,
@@ -752,6 +766,9 @@ String cactusPrefill(
 }
 
 /// Transcribes audio to text.
+///
+/// Accepts a file path via [audioPath] or raw PCM via [pcmData]. Provide
+/// [onToken] to receive streaming token callbacks.
 String cactusTranscribe(
   CactusModelT model,
   String? audioPath,
@@ -812,7 +829,7 @@ String cactusTranscribe(
   }
 }
 
-/// Generates a text embedding.
+/// Generates a text embedding vector as a [Float32List].
 Float32List cactusEmbed(CactusModelT model, String text, bool normalize) {
   const maxDim = 4096;
   final embeddingsBuffer = calloc<Float>(maxDim);
@@ -834,7 +851,7 @@ Float32List cactusEmbed(CactusModelT model, String text, bool normalize) {
   }
 }
 
-/// Generates an image embedding.
+/// Generates an image embedding from the file at [imagePath].
 Float32List cactusImageEmbed(CactusModelT model, String imagePath) {
   const maxDim = 4096;
   final embeddingsBuffer = calloc<Float>(maxDim);
@@ -856,7 +873,7 @@ Float32List cactusImageEmbed(CactusModelT model, String imagePath) {
   }
 }
 
-/// Generates an audio embedding.
+/// Generates an audio embedding from the file at [audioPath].
 Float32List cactusAudioEmbed(CactusModelT model, String audioPath) {
   const maxDim = 4096;
   final embeddingsBuffer = calloc<Float>(maxDim);
@@ -878,7 +895,7 @@ Float32List cactusAudioEmbed(CactusModelT model, String audioPath) {
   }
 }
 
-/// Runs speaker diarization. Returns JSON.
+/// Runs speaker diarization. Returns a JSON string with speaker segments.
 String cactusDiarize(
   CactusModelT model,
   String? audioPath,
@@ -920,7 +937,7 @@ String cactusDiarize(
   }
 }
 
-/// Extracts a speaker embedding vector. Returns JSON.
+/// Extracts a speaker embedding vector. Returns a JSON string.
 String cactusEmbedSpeaker(
   CactusModelT model,
   String? audioPath,
@@ -974,7 +991,7 @@ String cactusEmbedSpeaker(
   }
 }
 
-/// Runs voice activity detection. Returns JSON.
+/// Runs voice activity detection. Returns a JSON string with speech segments.
 String cactusVad(
   CactusModelT model,
   String? audioPath,
@@ -1016,7 +1033,7 @@ String cactusVad(
   }
 }
 
-/// Queries the RAG corpus. Returns JSON.
+/// Queries the RAG corpus. Returns a JSON string with matching chunks.
 String cactusRagQuery(CactusModelT model, String query, int topK) {
   const bufferSize = 65536;
   final responseBuffer = calloc<Uint8>(bufferSize);
@@ -1035,7 +1052,7 @@ String cactusRagQuery(CactusModelT model, String query, int topK) {
   }
 }
 
-/// Tokenizes text into token IDs.
+/// Tokenizes [text] into a list of token IDs.
 List<int> cactusTokenize(CactusModelT model, String text) {
   const maxTokens = 8192;
   final tokenBuffer = calloc<Uint32>(maxTokens);
@@ -1057,7 +1074,7 @@ List<int> cactusTokenize(CactusModelT model, String text) {
   }
 }
 
-/// Scores a window of tokens. Returns JSON.
+/// Scores a window of tokens. Returns a JSON string with the score.
 String cactusScoreWindow(
     CactusModelT model, List<int> tokens, int start, int end, int context) {
   final tokenBuffer = calloc<Uint32>(tokens.length);
@@ -1088,7 +1105,7 @@ String cactusScoreWindow(
   }
 }
 
-/// Creates a streaming transcription session.
+/// Creates a streaming transcription session. Returns the stream handle.
 CactusStreamTranscribeT cactusStreamTranscribeStart(
     CactusModelT model, String? optionsJson) {
   final optionsPtr = optionsJson?.toNativeUtf8() ?? nullptr;
@@ -1104,7 +1121,7 @@ CactusStreamTranscribeT cactusStreamTranscribeStart(
   }
 }
 
-/// Processes a chunk of PCM audio. Returns partial text.
+/// Processes a chunk of PCM audio in a streaming session. Returns partial text.
 String cactusStreamTranscribeProcess(
     CactusStreamTranscribeT stream, Uint8List pcmData) {
   const bufferSize = 65536;
@@ -1130,7 +1147,7 @@ String cactusStreamTranscribeProcess(
   }
 }
 
-/// Finalizes transcription and returns the result.
+/// Finalizes a streaming transcription session and returns the result.
 String cactusStreamTranscribeStop(CactusStreamTranscribeT stream) {
   const bufferSize = 65536;
   final responseBuffer = calloc<Uint8>(bufferSize);
@@ -1147,7 +1164,7 @@ String cactusStreamTranscribeStop(CactusStreamTranscribeT stream) {
   }
 }
 
-/// Initializes a vector index in the given directory.
+/// Initializes a vector index at [indexDir] with the given [embeddingDim].
 CactusIndexT cactusIndexInit(String indexDir, int embeddingDim) {
   final indexDirPtr = indexDir.toNativeUtf8();
   try {
@@ -1161,12 +1178,12 @@ CactusIndexT cactusIndexInit(String indexDir, int embeddingDim) {
   }
 }
 
-/// Frees all index resources.
+/// Frees all resources associated with an index handle.
 void cactusIndexDestroy(CactusIndexT index) {
   _cactusIndexDestroy(index);
 }
 
-/// Adds documents with embeddings to the index.
+/// Adds documents with their embeddings and optional metadata to the index.
 int cactusIndexAdd(
   CactusIndexT index,
   List<int> ids,
@@ -1178,22 +1195,29 @@ int cactusIndexAdd(
   final embDim = embeddings[0].length;
 
   final idsPtr = calloc<Int32>(count);
-  for (var i = 0; i < count; i++) idsPtr[i] = ids[i];
+  for (var i = 0; i < count; i++) {
+    idsPtr[i] = ids[i];
+  }
 
   final documentsPtr = calloc<Pointer<Utf8>>(count);
-  for (var i = 0; i < count; i++) documentsPtr[i] = documents[i].toNativeUtf8();
+  for (var i = 0; i < count; i++) {
+    documentsPtr[i] = documents[i].toNativeUtf8();
+  }
 
   final metadatasPtr =
       metadatas != null ? calloc<Pointer<Utf8>>(count) : nullptr;
   if (metadatas != null) {
-    for (var i = 0; i < count; i++)
+    for (var i = 0; i < count; i++) {
       metadatasPtr[i] = metadatas[i].toNativeUtf8();
+    }
   }
 
   final embeddingsPtr = calloc<Pointer<Float>>(count);
   for (var i = 0; i < count; i++) {
     final embPtr = calloc<Float>(embeddings[i].length);
-    for (var j = 0; j < embeddings[i].length; j++) embPtr[j] = embeddings[i][j];
+    for (var j = 0; j < embeddings[i].length; j++) {
+      embPtr[j] = embeddings[i][j];
+    }
     embeddingsPtr[i] = embPtr;
   }
 
@@ -1217,10 +1241,12 @@ int cactusIndexAdd(
   }
 }
 
-/// Removes documents by ID.
+/// Removes documents by their IDs from the index.
 int cactusIndexDelete(CactusIndexT index, List<int> ids) {
   final idsPtr = calloc<Int32>(ids.length);
-  for (var i = 0; i < ids.length; i++) idsPtr[i] = ids[i];
+  for (var i = 0; i < ids.length; i++) {
+    idsPtr[i] = ids[i];
+  }
 
   try {
     final result = _cactusIndexDelete(index, idsPtr, ids.length);
@@ -1233,13 +1259,15 @@ int cactusIndexDelete(CactusIndexT index, List<int> ids) {
   }
 }
 
-/// Retrieves documents by ID. Returns JSON.
+/// Retrieves documents by ID from the index. Returns a JSON string.
 String cactusIndexGet(CactusIndexT index, List<int> ids) {
   final count = ids.length;
   if (count == 0) return '{"results":[]}';
 
   final idsPtr = calloc<Int32>(count);
-  for (var i = 0; i < count; i++) idsPtr[i] = ids[i];
+  for (var i = 0; i < count; i++) {
+    idsPtr[i] = ids[i];
+  }
 
   const docBufSize = 4096;
   const embBufSize = 4096;
@@ -1288,10 +1316,11 @@ String cactusIndexGet(CactusIndexT index, List<int> ids) {
       final meta = metaStr.isNotEmpty ? metaStr : null;
       final embDim = embBufferSizes[i];
       sb.write('{"document":"$doc"');
-      if (meta != null)
+      if (meta != null) {
         sb.write(',"metadata":"$meta"');
-      else
+      } else {
         sb.write(',"metadata":null');
+      }
       sb.write(',"embedding":[');
       for (var j = 0; j < embDim; j++) {
         if (j > 0) sb.write(',');
@@ -1317,12 +1346,14 @@ String cactusIndexGet(CactusIndexT index, List<int> ids) {
   }
 }
 
-/// Searches the index by embedding. Returns JSON.
+/// Searches the index by embedding vector. Returns a JSON string of results.
 String cactusIndexQuery(
     CactusIndexT index, List<double> embedding, String? optionsJson) {
   const resultCapacity = 1000;
   final embPtr = calloc<Float>(embedding.length);
-  for (var i = 0; i < embedding.length; i++) embPtr[i] = embedding[i];
+  for (var i = 0; i < embedding.length; i++) {
+    embPtr[i] = embedding[i];
+  }
 
   final embPtrPtr = calloc<Pointer<Float>>(1);
   embPtrPtr[0] = embPtr;
@@ -1378,7 +1409,7 @@ String cactusIndexQuery(
   }
 }
 
-/// Compacts the index storage.
+/// Compacts the index storage to reclaim space from deleted entries.
 int cactusIndexCompact(CactusIndexT index) {
   final result = _cactusIndexCompact(index);
   if (result < 0) {
@@ -1387,7 +1418,7 @@ int cactusIndexCompact(CactusIndexT index) {
   return result;
 }
 
-/// Detects the spoken language in an audio file. Returns JSON.
+/// Detects the spoken language in an audio file. Returns a JSON string.
 String cactusDetectLanguage(
   CactusModelT model,
   String? audioPath,
@@ -1436,7 +1467,7 @@ void cactusLogSetLevel(int level) {
 
 NativeCallable<LogCallbackNative>? _logCallable;
 
-/// Sets a log callback. Pass null to clear.
+/// Sets a log callback. Pass null to clear the callback.
 void cactusLogSetCallback(
     void Function(int level, String component, String message)? onLog) {
   _logCallable?.close();

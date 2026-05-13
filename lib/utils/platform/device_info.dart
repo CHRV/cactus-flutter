@@ -3,6 +3,11 @@ import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 
+/// Collects device metadata (model, OS, version, device ID, brand) for
+/// the current platform (Android, iOS, or macOS).
+///
+/// Returns a map containing device properties. On unsupported or error
+/// conditions the map includes fallback values and an `error` key.
 Future<Map<String, dynamic>> getDeviceMetadata() async {
   final deviceInfo = DeviceInfoPlugin();
   Map<String, dynamic> deviceData = {};

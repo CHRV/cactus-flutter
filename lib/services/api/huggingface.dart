@@ -22,28 +22,52 @@ const _kKnownCapabilities = <String>{
   'apple-npu',
 };
 
+/// Service class for interacting with the Hugging Face API to discover and
+/// download Cactus models.
 class HuggingFace {
   static Future<Map<String, CactusModel>>? _registryCache;
 
+  /// Returns the cached registry of known Cactus models, fetching it from
+  /// Hugging Face on the first call.
+  ///
+  /// Returns: A map of model slugs to [CactusModel] instances.
   static Future<Map<String, CactusModel>> getRegistry() async {
     return _registryCache ??= _fetchRegistry();
   }
 
+  /// Clears the internal cache and re-fetches the full model registry from
+  /// Hugging Face.
+  ///
+  /// Returns: A fresh map of model slugs to [CactusModel] instances.
   static Future<Map<String, CactusModel>> refreshRegistry() async {
     _registryCache = null;
     return getRegistry();
   }
 
+  /// Returns a flat list of all models currently in the registry.
+  ///
+  /// Returns: A list of all [CactusModel] instances.
   static Future<List<CactusModel>> fetchModels() async {
     final registry = await getRegistry();
     return registry.values.toList();
   }
 
+  /// Looks up a single model by its [slug].
+  ///
+  /// Returns: The matching [CactusModel], or `null` if no model with that slug
+  /// exists in the registry.
   static Future<CactusModel?> getModel(String slug) async {
     final registry = await getRegistry();
     return registry[slug];
   }
 
+  /// Resolves the latest compatible version tag for a given Hugging Face
+  /// [modelId] by comparing git tags against the current runtime version.
+  ///
+  /// Tags are parsed as [SemverVersion] and the highest tag that is less than
+  /// or equal to the runtime version is selected.
+  /// Returns: The version tag string (e.g. `"v1.2.3"`).
+  /// Throws: [Exception] if no compatible version is found.
   static Future<String> resolveVersion(String modelId) async {
     final client = _createClient();
     try {
@@ -87,6 +111,14 @@ class HuggingFace {
     }
   }
 
+  /// Constructs the download URL for a model's weight files on Hugging Face.
+  ///
+  /// [repoId]: The Hugging Face repository ID (e.g. `"org/model"`).
+  /// [version]: The version tag (e.g. `"v1.0.0"`).
+  /// [key]: The weight file key.
+  /// [quantization]: The quantization level (e.g. `"int4"` or `"int8"`).
+  /// [apple]: Whether to use the Apple-specific weight suffix.
+  /// Returns: A fully-qualified HTTPS URL to the weight archive.
   static String constructDownloadUrl({
     required String repoId,
     required String version,
@@ -259,6 +291,11 @@ class HuggingFace {
 
   static HttpClient _createClient() => HttpClient();
 
+  /// Parses a [version] string in `major.minor.patch` format into a
+  /// [SemverVersion]. Patch is treated as `0` when absent.
+  ///
+  /// Returns: A [SemverVersion] if parsing succeeds, or `null` if the string
+  /// does not match the expected format.
   @visibleForTesting
   static SemverVersion? parseSemver(String version) {
     final match = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?$').firstMatch(version);
@@ -272,6 +309,11 @@ class HuggingFace {
 
   static SemverVersion? _parseSemver(String version) => parseSemver(version);
 
+  /// Extracts known capability strings from a list of [tags].
+  ///
+  /// Only tags that match the internal set of known capability identifiers are
+  /// included in the result.
+  /// Returns: A filtered list of capability strings.
   @visibleForTesting
   static List<String> extractCapabilities(List<dynamic> tags) {
     return tags
@@ -281,13 +323,22 @@ class HuggingFace {
   }
 }
 
+/// A simple semantic versioning representation that supports comparison.
 class SemverVersion implements Comparable<SemverVersion> {
+  /// The major version number.
   final int major;
+
+  /// The minor version number.
   final int minor;
+
+  /// The patch version number.
   final int patch;
 
+  /// Creates a [SemverVersion] from [major], [minor], and [patch] components.
   const SemverVersion(this.major, this.minor, this.patch);
 
+  /// Compares this version to [other], returning a negative, zero, or positive
+  /// value if this version is less than, equal to, or greater than [other].
   @override
   int compareTo(SemverVersion other) {
     if (major != other.major) return major.compareTo(other.major);
@@ -295,8 +346,10 @@ class SemverVersion implements Comparable<SemverVersion> {
     return patch.compareTo(other.patch);
   }
 
+  /// Returns `true` if this version is less than or equal to [other].
   bool operator <=(SemverVersion other) => compareTo(other) <= 0;
 
+  /// Returns a string representation in `major.minor.patch` format.
   @override
   String toString() => '$major.$minor.$patch';
 }

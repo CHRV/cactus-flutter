@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:isolate';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'package:cactus/models/types.dart';
@@ -86,13 +85,23 @@ class _TranscribeIsolateArgs {
 // CactusContext
 // ---------------------------------------------------------------------------
 
+/// A high-level wrapper around a native Cactus model handle.
+///
+/// Provides convenience methods for LLM completion, transcription, embedding,
+/// VAD, diarization, RAG queries, streaming transcription and more. All
+/// instance methods delegate to the FFI bindings in [bindings].
 class CactusContext {
   final Pointer<Void> _handle;
 
   CactusContext._(this._handle);
 
+  /// The underlying native pointer.
   Pointer<Void> get handle => _handle;
 
+  /// Initializes a new Cactus model from [modelPath].
+  ///
+  /// Optionally loads a [corpusDir] for RAG and controls index caching with
+  /// [cacheIndex].
   static Future<CactusContext> initContext({
     required String modelPath,
     String? corpusDir,
@@ -102,20 +111,25 @@ class CactusContext {
     return CactusContext._(handle);
   }
 
+  /// Creates a [CactusContext] from a raw native pointer [address].
   static CactusContext fromAddress(int address) {
     return CactusContext._(Pointer.fromAddress(address));
   }
 
+  /// The raw memory address of the underlying native handle.
   int get address => _handle.address;
 
+  /// Frees all native model resources.
   void destroy() {
     bindings.cactusDestroy(_handle);
   }
 
+  /// Clears the KV cache.
   void reset() {
     bindings.cactusReset(_handle);
   }
 
+  /// Signals the current generation to stop.
   void stop() {
     bindings.cactusStop(_handle);
   }
@@ -125,6 +139,11 @@ class CactusContext {
   // use [completeAt] which spawns an isolate.
   // -------------------------------------------------------------------------
 
+  /// Runs chat completion on the main thread.
+  ///
+  /// Returns a [CactusLMCompleteResult] with the assistant response. Provide
+  /// [onToken] to receive streaming token callbacks. Pass raw PCM audio via
+  /// [pcmData] for multimodal models.
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -217,6 +236,7 @@ class CactusContext {
   // Prefill
   // -------------------------------------------------------------------------
 
+  /// Prefills the KV cache with [messages] without generating a response.
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -269,11 +289,13 @@ class CactusContext {
   // Tokenize
   // -------------------------------------------------------------------------
 
+  /// Tokenizes [text] into a list of token IDs using the model's tokenizer.
   Future<CactusLMTokenizeResult> tokenize(String text) async {
     final tokens = bindings.cactusTokenize(_handle, text);
     return CactusLMTokenizeResult(tokens: tokens);
   }
 
+  /// Tokenizes [text] using a handle identified by raw [address].
   static CactusLMTokenizeResult tokenizeWithHandle(int address, String text) {
     final context = CactusContext.fromAddress(address);
     final tokens = bindings.cactusTokenize(context.handle, text);
@@ -284,6 +306,7 @@ class CactusContext {
   // Score window
   // -------------------------------------------------------------------------
 
+  /// Scores a sliding window of [tokens] between [start] and [end].
   Future<CactusLMScoreWindowResult> scoreWindow({
     required List<int> tokens,
     required int start,
@@ -301,6 +324,7 @@ class CactusContext {
     return CactusLMScoreWindowResult(score: data['score']?.toDouble() ?? 0.0);
   }
 
+  /// Scores a token window using a handle identified by raw [address].
   static CactusLMScoreWindowResult scoreWindowWithHandle(
     int address,
     List<int> tokens,
@@ -324,12 +348,14 @@ class CactusContext {
   // Embed text
   // -------------------------------------------------------------------------
 
+  /// Generates a text embedding vector for [text].
   Future<CactusLMEmbedResult> embed(String text,
       {bool normalize = true}) async {
     final embedding = bindings.cactusEmbed(_handle, text, normalize);
     return CactusLMEmbedResult(embedding: embedding.toList());
   }
 
+  /// Embeds [text] using a handle identified by raw [address].
   static CactusLMEmbedResult embedWithHandle(
       int address, String text, bool normalize) {
     final context = CactusContext.fromAddress(address);
@@ -341,11 +367,13 @@ class CactusContext {
   // Embed image
   // -------------------------------------------------------------------------
 
+  /// Generates an image embedding from the file at [imagePath].
   Future<CactusLMImageEmbedResult> embedImage(String imagePath) async {
     final embedding = bindings.cactusImageEmbed(_handle, imagePath);
     return CactusLMImageEmbedResult(embedding: embedding.toList());
   }
 
+  /// Embeds an image using a handle identified by raw [address].
   static CactusLMImageEmbedResult imageEmbedWithHandle(
       int address, String imagePath) {
     final context = CactusContext.fromAddress(address);
@@ -357,11 +385,13 @@ class CactusContext {
   // Embed audio
   // -------------------------------------------------------------------------
 
+  /// Generates an audio embedding from the file at [audioPath].
   Future<CactusSTTAudioEmbedResult> embedAudio(String audioPath) async {
     final embedding = bindings.cactusAudioEmbed(_handle, audioPath);
     return CactusSTTAudioEmbedResult(embedding: embedding.toList());
   }
 
+  /// Embeds audio using a handle identified by raw [address].
   static CactusSTTAudioEmbedResult audioEmbedWithHandle(
       int address, String audioPath) {
     final context = CactusContext.fromAddress(address);
@@ -373,6 +403,7 @@ class CactusContext {
   // RAG query
   // -------------------------------------------------------------------------
 
+  /// Queries the RAG corpus with [query] and returns the top-[topK] chunks.
   Future<CactusLMRagQueryResult> ragQuery(String query, {int topK = 5}) async {
     final resultJson = bindings.cactusRagQuery(_handle, query, topK);
     final Map<String, dynamic> data = jsonDecode(resultJson);
@@ -387,6 +418,7 @@ class CactusContext {
     return CactusLMRagQueryResult(chunks: chunks, error: data['error']);
   }
 
+  /// Queries the RAG corpus using a handle identified by raw [address].
   static CactusLMRagQueryResult ragQueryWithHandle(
       int address, String query, int topK) {
     final context = CactusContext.fromAddress(address);
@@ -408,6 +440,10 @@ class CactusContext {
   // use [transcribeAt] which spawns an isolate.
   // -------------------------------------------------------------------------
 
+  /// Transcribes audio to text on the main thread.
+  ///
+  /// Accepts a file path via [audioPath] or raw PCM via [pcmData]. Provide
+  /// [onToken] to receive streaming token callbacks.
   Future<CactusSTTTranscribeResult> transcribe({
     String? audioPath,
     List<int>? pcmData,
@@ -493,6 +529,7 @@ class CactusContext {
   // Detect language
   // -------------------------------------------------------------------------
 
+  /// Detects the spoken language in an audio recording.
   Future<CactusSTTDetectLanguageResult> detectLanguage({
     String? audioPath,
     List<int>? pcmData,
@@ -532,6 +569,7 @@ class CactusContext {
   // VAD
   // -------------------------------------------------------------------------
 
+  /// Runs voice activity detection on an audio recording.
   Future<CactusAudioVADResult> vad({
     String? audioPath,
     List<int>? pcmData,
@@ -579,6 +617,7 @@ class CactusContext {
   // Diarize
   // -------------------------------------------------------------------------
 
+  /// Runs speaker diarization to identify who spoke when.
   Future<CactusAudioDiarizeResult> diarize({
     String? audioPath,
     List<int>? pcmData,
@@ -625,6 +664,7 @@ class CactusContext {
   // Embed speaker
   // -------------------------------------------------------------------------
 
+  /// Extracts a speaker embedding vector from an audio recording.
   Future<CactusAudioEmbedSpeakerResult> embedSpeaker({
     String? audioPath,
     List<int>? pcmData,
@@ -670,12 +710,14 @@ class CactusContext {
   // Stream transcription
   // -------------------------------------------------------------------------
 
+  /// Starts a streaming transcription session. Returns the stream handle address.
   int streamTranscribeStart({CactusSTTStreamTranscribeStartOptions? options}) {
     final optionsJson = options != null ? jsonEncode(options.toJson()) : '{}';
     final stream = bindings.cactusStreamTranscribeStart(_handle, optionsJson);
     return stream.address;
   }
 
+  /// Processes a PCM audio chunk in a streaming session identified by [streamAddress].
   Future<CactusSTTStreamTranscribeProcessResult> streamTranscribeProcess({
     required int streamAddress,
     required List<int> pcmData,
@@ -703,6 +745,7 @@ class CactusContext {
     );
   }
 
+  /// Processes a PCM chunk in a streaming session using a raw [streamAddress].
   static CactusSTTStreamTranscribeProcessResult
       streamTranscribeProcessWithHandle(
     int streamAddress,
@@ -731,6 +774,7 @@ class CactusContext {
     );
   }
 
+  /// Stops a streaming transcription session identified by [streamAddress].
   Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop(
       int streamAddress) async {
     final resultJson = bindings.cactusStreamTranscribeStop(
@@ -743,6 +787,7 @@ class CactusContext {
     );
   }
 
+  /// Stops a streaming session using a raw [streamAddress].
   static CactusSTTStreamTranscribeStopResult streamTranscribeStopWithHandle(
       int streamAddress) {
     final resultJson = bindings.cactusStreamTranscribeStop(
@@ -963,13 +1008,19 @@ CactusAudioEmbedSpeakerResult _embedSpeakerInIsolate(
 // CactusIndex (wrapper around native cactus_index_t)
 // ===========================================================================
 
+/// A wrapper around a native vector index handle.
+///
+/// Supports adding, deleting, retrieving, querying and compacting documents
+/// by their embedding vectors. All operations delegate to the FFI bindings.
 class CactusIndex {
   final Pointer<Void> _handle;
 
   CactusIndex._(this._handle);
 
+  /// The underlying native pointer.
   Pointer<Void> get handle => _handle;
 
+  /// Initializes a new vector index at [indexPath] with the given [embeddingDim].
   static Future<CactusIndex> init({
     required String indexPath,
     required int embeddingDim,
@@ -978,10 +1029,12 @@ class CactusIndex {
     return CactusIndex._(handle);
   }
 
+  /// Creates a [CactusIndex] from a raw native pointer [address].
   static CactusIndex fromAddress(int address) {
     return CactusIndex._(Pointer.fromAddress(address));
   }
 
+  /// Adds documents with their embeddings and optional [metadatas] to the index.
   void add({
     required List<int> ids,
     required List<String> documents,
@@ -992,10 +1045,14 @@ class CactusIndex {
     bindings.cactusIndexAdd(_handle, ids, documents, embeddings, metadatas);
   }
 
+  /// Removes documents identified by [ids] from the index.
   void delete({required List<int> ids}) {
     bindings.cactusIndexDelete(_handle, ids);
   }
 
+  /// Retrieves documents by their [ids].
+  ///
+  /// Missing or deleted IDs gracefully return empty values.
   CactusIndexGetResult get({required List<int> ids}) {
     // Query each ID individually to gracefully handle deleted/missing documents.
     final documents = <String>[];
@@ -1034,6 +1091,8 @@ class CactusIndex {
     );
   }
 
+  /// Queries the index with one or more [embeddings] and returns matching IDs
+  /// and scores.
   CactusIndexQueryResult query({
     required List<List<double>> embeddings,
     required int embeddingDim,
@@ -1063,10 +1122,12 @@ class CactusIndex {
     return CactusIndexQueryResult(ids: resultIds, scores: resultScores);
   }
 
+  /// Compacts the index storage to reclaim space from deleted entries.
   void compact() {
     bindings.cactusIndexCompact(_handle);
   }
 
+  /// Frees all native index resources.
   void destroy() {
     bindings.cactusIndexDestroy(_handle);
   }

@@ -6,8 +6,14 @@ import 'package:cactus/models/types.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Handles downloading, extracting, and verifying model files.
 class DownloadService {
-  /// Check if a model/folder exists and contains files
+  /// Check if a model/folder exists and contains files.
+  ///
+  /// [folderName]: Name of the model folder to check.
+  /// [basePath]: Optional custom base path; defaults to the application
+  ///   documents `models/` directory.
+  /// Returns: `true` if the folder exists and contains at least one file.
   static Future<bool> modelExists(String folderName, [String? basePath]) async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final modelFolderPath = basePath ?? '${appDocDir.path}/models/$folderName';
@@ -19,7 +25,13 @@ class DownloadService {
     return false;
   }
 
-  /// Download and extract multiple models/files
+  /// Download and extract multiple models/files.
+  ///
+  /// [tasks]: The list of download tasks to process.
+  /// [downloadProcessCallback]: Optional callback for progress updates.
+  /// [basePath]: Optional custom base path; defaults to the application
+  ///   documents `models/` directory.
+  /// Returns: `true` if all downloads completed successfully.
   static Future<bool> downloadAndExtractModels(
       List<DownloadTask> tasks, CactusProgressCallback? downloadProcessCallback,
       [String? basePath]) async {
@@ -57,7 +69,7 @@ class DownloadService {
     return true;
   }
 
-  /// Download and extract a single model/file
+  /// Download and extract a single model/file.
   static Future<bool> _downloadAndExtractModel(String url, String filename,
       String folder, CactusProgressCallback? downloadProcessCallback,
       [String? basePath]) async {
@@ -158,7 +170,7 @@ class DownloadService {
     }
   }
 
-  /// Extract a zip file to the specified directory
+  /// Extract a zip file to the specified directory.
   static Future<void> _extractZipFile(String zipFilePath, String extractToPath,
       CactusProgressCallback? downloadProcessCallback) async {
     final modelFolder = Directory(extractToPath);
@@ -245,11 +257,22 @@ class DownloadService {
   }
 }
 
+/// Describes a single model download operation.
 class DownloadTask {
+  /// The remote URL from which to download the file.
   final String url;
+
+  /// The filename (including extension) to save.
   final String filename;
+
+  /// The sub-directory (under the models root) to extract into.
   final String folder;
 
+  /// Creates a download task.
+  ///
+  /// [url]: The remote download URL.
+  /// [filename]: The name of the downloaded file.
+  /// [folder]: The target folder name for extraction.
   DownloadTask({
     required this.url,
     required this.filename,

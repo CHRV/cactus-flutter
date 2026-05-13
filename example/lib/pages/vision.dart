@@ -87,8 +87,9 @@ class _VisionPageState extends State<VisionPage> {
         pro: usePro,
         onProgress: (progress, status, isError) {
           setState(() {
-            if (isError) outputText = 'Error: $status';
-            else {
+            if (isError) {
+              outputText = 'Error: $status';
+            } else {
               outputText = status;
               if (progress != null) outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
             }

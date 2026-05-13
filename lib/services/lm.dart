@@ -11,15 +11,26 @@ import 'package:cactus/services/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// High-level interface to a Cactus language model.
+///
+/// Manages model download, initialization, inference (completion, embedding,
+/// RAG), and resource lifecycle.
 class CactusLM {
   CactusContext? _context;
   bool _isInitialized = false;
   bool _isDownloading = false;
   bool _isGenerating = false;
 
+  /// The model identifier (e.g. "qwen3-0.6b").
   final String model;
+
+  /// Optional directory for retrieval-augmented generation (RAG) corpus files.
   final String? corpusDir;
+
+  /// Whether to cache the RAG index on disk.
   final bool cacheIndex;
+
+  /// Configuration options such as quantization level and pro mode.
   final CactusModelOptions options;
 
   static const String _defaultModel = 'qwen3-0.6b';
@@ -33,6 +44,12 @@ class CactusLM {
 
   final _handleLock = AsyncLock();
 
+  /// Creates a [CactusLM] instance.
+  ///
+  /// [model]: Model identifier. Defaults to [_defaultModel].
+  /// [corpusDir]: Optional directory for RAG corpus files.
+  /// [cacheIndex]: Whether to cache the RAG index on disk. Defaults to false.
+  /// [options]: Optional configuration overrides (quantization, pro mode).
   CactusLM({
     String? model,
     this.corpusDir,
@@ -53,6 +70,15 @@ class CactusLM {
     return '${dir.path}/models/${modelName(model, options)}';
   }
 
+  /// Downloads the model from HuggingFace if not already present locally.
+  ///
+  /// [model]: Override model identifier. Uses instance [model] if null.
+  /// [quantization]: Override quantization level.
+  /// [pro]: Whether to use the pro (Apple) variant.
+  /// [onProgress]: Callback invoked with download progress updates.
+  ///
+  /// Throws [CactusException] if a download is already in progress or the
+  /// model is not found in the registry.
   Future<void> download({
     String? model,
     String? quantization,
@@ -110,6 +136,10 @@ class CactusLM {
     }
   }
 
+  /// Initializes the model context and loads the model into memory.
+  ///
+  /// Resolves the model path from a local file or the application documents
+  /// directory. Throws [CactusException] if the model has not been downloaded.
   Future<void> init() async {
     if (_isInitialized) return;
 
@@ -135,15 +165,21 @@ class CactusLM {
     _isInitialized = true;
   }
 
+  /// Initializes or re-initializes the model.
+  ///
+  /// [model]: Optional model identifier override.
+  /// [params]: Optional initialization parameters.
   Future<void> initializeModel({String? model, CactusInitParams? params}) =>
       init();
 
+  /// Destroys the model context and releases all associated resources.
   void destroy() {
     _context?.destroy();
     _context = null;
     _isInitialized = false;
   }
 
+  /// Alias for [destroy]. Unloads the model from memory.
   void unload() => destroy();
 
   /// Complete via isolated FFI call. Uses Isolate.spawn because
@@ -186,6 +222,15 @@ class CactusLM {
     }
   }
 
+  /// Generates a completion for the given conversation messages.
+  ///
+  /// [messages]: The conversation messages to complete.
+  /// [params]: Optional completion parameters (e.g. max tokens, temperature).
+  /// [tools]: Optional tool definitions for function calling.
+  /// [onToken]: Callback invoked for each generated token.
+  /// [audio]: Optional PCM audio data for audio-capable models.
+  ///
+  /// Returns the full [CactusLMCompleteResult].
   Future<CactusLMCompleteResult> generateCompletion({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? params,
@@ -201,6 +246,15 @@ class CactusLM {
         audio: audio,
       );
 
+  /// Generates a streaming completion, yielding tokens via a [Stream].
+  ///
+  /// [messages]: The conversation messages to complete.
+  /// [params]: Optional completion parameters.
+  /// [tools]: Optional tool definitions for function calling.
+  /// [audio]: Optional PCM audio data for audio-capable models.
+  ///
+  /// Returns a [CactusStreamedCompletionResult] containing both a token stream
+  /// and a future that resolves to the full [CactusLMCompleteResult].
   Future<CactusStreamedCompletionResult> generateCompletionStream({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? params,
@@ -262,6 +316,11 @@ class CactusLM {
     }
   }
 
+  /// Tokenizes the input text into token IDs using the loaded model.
+  ///
+  /// [text]: The input string to tokenize.
+  ///
+  /// Returns a [CactusLMTokenizeResult] containing the token IDs.
   Future<CactusLMTokenizeResult> tokenize({required String text}) async {
     await init();
     if (_context == null) throw CactusException('Model not initialized');
@@ -272,6 +331,14 @@ class CactusLM {
     });
   }
 
+  /// Scores a window of tokens, computing log-probabilities.
+  ///
+  /// [tokens]: The full token sequence.
+  /// [start]: Start index of the scoring window.
+  /// [end]: End index of the scoring window (exclusive).
+  /// [context]: Number of context tokens preceding the window.
+  ///
+  /// Returns a [CactusLMScoreWindowResult] with per-token scores.
   Future<CactusLMScoreWindowResult> scoreWindow({
     required List<int> tokens,
     required int start,
@@ -309,12 +376,23 @@ class CactusLM {
     });
   }
 
+  /// Generates an embedding vector for the given text.
+  ///
+  /// [text]: The input text to embed.
+  /// [normalize]: Whether to L2-normalize the embedding vector. Defaults to false.
+  ///
+  /// Returns a [CactusLMEmbedResult] containing the embedding.
   Future<CactusLMEmbedResult> generateEmbedding({
     required String text,
     bool normalize = false,
   }) =>
       embed(text: text, normalize: normalize);
 
+  /// Generates an embedding for the image at the given file path.
+  ///
+  /// [imagePath]: Absolute or relative path to the image file.
+  ///
+  /// Returns a [CactusLMImageEmbedResult] containing the image embedding.
   Future<CactusLMImageEmbedResult> imageEmbed({
     required String imagePath,
   }) async {
@@ -331,6 +409,12 @@ class CactusLM {
     });
   }
 
+  /// Queries the RAG corpus for context relevant to the given query.
+  ///
+  /// [query]: The search query string.
+  /// [topK]: Number of top results to return. Defaults to 5.
+  ///
+  /// Returns a [CactusLMRagQueryResult] with ranked matches.
   Future<CactusLMRagQueryResult> ragQuery({
     required String query,
     int topK = 5,
@@ -345,14 +429,21 @@ class CactusLM {
     });
   }
 
+  /// Stops the current generation in progress.
   Future<void> stop() async {
     _context?.stop();
   }
 
+  /// Resets the model state, clearing the internal context cache.
   Future<void> reset() async {
     _context?.reset();
   }
 
+  /// Retrieves available models from the HuggingFace registry.
+  ///
+  /// Checks and annotates the download status for each model.
+  ///
+  /// Returns a list of [CactusModel] entries.
   Future<List<CactusModel>> getModels() async {
     final registry = await HuggingFace.getRegistry();
     final models = registry.values.toList();
@@ -362,6 +453,7 @@ class CactusLM {
     return models;
   }
 
+  /// Returns the resolved model name including quantization and pro suffix.
   String getModelName() => modelName(model, options);
 }
 

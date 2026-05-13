@@ -4,33 +4,33 @@ import 'package:test/test.dart';
 void main() {
   group('SemverVersion', () {
     test('compareTo with different major', () {
-      expect(SemverVersion(2, 0, 0).compareTo(SemverVersion(1, 0, 0)), greaterThan(0));
-      expect(SemverVersion(1, 0, 0).compareTo(SemverVersion(2, 0, 0)), lessThan(0));
+      expect(const SemverVersion(2, 0, 0).compareTo(const SemverVersion(1, 0, 0)), greaterThan(0));
+      expect(const SemverVersion(1, 0, 0).compareTo(const SemverVersion(2, 0, 0)), lessThan(0));
     });
 
     test('compareTo with different minor', () {
-      expect(SemverVersion(1, 14, 0).compareTo(SemverVersion(1, 13, 0)), greaterThan(0));
-      expect(SemverVersion(1, 13, 0).compareTo(SemverVersion(1, 14, 0)), lessThan(0));
+      expect(const SemverVersion(1, 14, 0).compareTo(const SemverVersion(1, 13, 0)), greaterThan(0));
+      expect(const SemverVersion(1, 13, 0).compareTo(const SemverVersion(1, 14, 0)), lessThan(0));
     });
 
     test('compareTo with different patch', () {
-      expect(SemverVersion(1, 14, 1).compareTo(SemverVersion(1, 14, 0)), greaterThan(0));
-      expect(SemverVersion(1, 14, 0).compareTo(SemverVersion(1, 14, 1)), lessThan(0));
+      expect(const SemverVersion(1, 14, 1).compareTo(const SemverVersion(1, 14, 0)), greaterThan(0));
+      expect(const SemverVersion(1, 14, 0).compareTo(const SemverVersion(1, 14, 1)), lessThan(0));
     });
 
     test('compareTo with equal versions', () {
-      expect(SemverVersion(1, 14, 0).compareTo(SemverVersion(1, 14, 0)), equals(0));
+      expect(const SemverVersion(1, 14, 0).compareTo(const SemverVersion(1, 14, 0)), equals(0));
     });
 
     test('<= operator', () {
-      expect(SemverVersion(1, 13, 0) <= SemverVersion(1, 14, 0), isTrue);
-      expect(SemverVersion(1, 14, 0) <= SemverVersion(1, 14, 0), isTrue);
-      expect(SemverVersion(1, 15, 0) <= SemverVersion(1, 14, 0), isFalse);
+      expect(const SemverVersion(1, 13, 0) <= const SemverVersion(1, 14, 0), isTrue);
+      expect(const SemverVersion(1, 14, 0) <= const SemverVersion(1, 14, 0), isTrue);
+      expect(const SemverVersion(1, 15, 0) <= const SemverVersion(1, 14, 0), isFalse);
     });
 
     test('toString', () {
-      expect(SemverVersion(1, 14, 0).toString(), equals('1.14.0'));
-      expect(SemverVersion(1, 7, 0).toString(), equals('1.7.0'));
+      expect(const SemverVersion(1, 14, 0).toString(), equals('1.14.0'));
+      expect(const SemverVersion(1, 7, 0).toString(), equals('1.7.0'));
     });
   });
 
