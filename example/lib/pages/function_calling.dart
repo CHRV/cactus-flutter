@@ -144,19 +144,24 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
     try {
       final resp = await lm.generateCompletion(
         messages: [
-          ChatMessage(content: 'How is the weather in New York?', role: "user")
+          ChatMessage(
+            content: 'How is the weather in New York?',
+            role: CactusLMRole.user,
+          ),
         ],
         tools: [
-          CactusLMTool(
+          CactusTool(
             name: 'get_weather',
             description: 'Get weather for a location',
-            parameters: {
-              'location': {
-                'type': 'string',
-                'description': 'City name',
-                'required': true,
+            parameters: ToolParametersSchema(
+              properties: {
+                'location': ToolParameter(
+                  type: 'string',
+                  description: 'City name',
+                  required: true,
+                ),
               },
-            },
+            ),
           ),
         ],
       );

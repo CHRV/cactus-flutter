@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cactus/models/tools.dart';
 import 'package:cactus/models/types.dart';
 import 'package:cactus/utils/async_lock.dart';
 import 'package:cactus/utils/model_utils.dart';
@@ -208,7 +209,7 @@ class CactusLM {
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     CactusTokenCallback? onToken,
     List<int>? audio,
   }) async {
@@ -255,7 +256,7 @@ class CactusLM {
   Future<CactusLMCompleteResult> generateCompletion({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? params,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     CactusTokenCallback? onToken,
     List<int>? audio,
   }) =>
@@ -279,7 +280,7 @@ class CactusLM {
   Future<CactusStreamedCompletionResult> generateCompletionStream({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? params,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     List<int>? audio,
   }) async {
     final controller = StreamController<String>();
@@ -304,7 +305,7 @@ class CactusLM {
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     List<int>? audio,
   }) async {
     if (_isGenerating) throw CactusException('Already generating');

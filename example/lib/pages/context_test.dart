@@ -129,8 +129,8 @@ class _ContextTestPageState extends State<ContextTestPage> {
       userContent.write('Explain the data.');
 
       final resp = await lm.generateCompletion(messages: [
-        ChatMessage(content: systemContent.toString(), role: "system"),
-        ChatMessage(content: userContent.toString(), role: "user")
+        ChatMessage(content: systemContent.toString(), role: CactusLMRole.system),
+        ChatMessage(content: userContent.toString(), role: CactusLMRole.user)
       ], params: CactusCompletionParams(maxTokens: 100));
 
       if (resp.success) {

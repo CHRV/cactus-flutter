@@ -26,33 +26,32 @@ void main() {
       final result = await lm.complete(
         messages: [
           CactusLMMessage(
-            role: 'system',
+            role: CactusLMRole.system,
             content:
                 'You are a helpful assistant. When the user asks a question that requires a calculation, ALWAYS call the calculator tool with the appropriate expression.',
           ),
           CactusLMMessage(
-            role: 'user',
+            role: CactusLMRole.user,
             content: 'What is 2 + 2?',
           ),
         ],
         options:
             const CactusLMCompleteOptions(maxTokens: 512, forceTools: true),
         tools: [
-          CactusLMTool(
+          CactusTool(
             name: 'calculator',
             description:
                 'A simple calculator that evaluates mathematical expressions.',
-            parameters: {
-              'type': 'object',
-              'properties': {
-                'expression': {
-                  'type': 'string',
-                  'description':
+            parameters: ToolParametersSchema(
+              properties: {
+                'expression': ToolParameter(
+                  type: 'string',
+                  description:
                       'The mathematical expression to evaluate, e.g. "2 + 2"',
-                },
+                  required: true,
+                ),
               },
-              'required': ['expression'],
-            },
+            ),
           ),
         ],
       );
@@ -67,7 +66,7 @@ void main() {
       final tokens = <String>[];
       final result = await lm.complete(
         messages: [
-          CactusLMMessage(role: 'user', content: 'Say hi in one word.'),
+          CactusLMMessage(role: CactusLMRole.user, content: 'Say hi in one word.'),
         ],
         options: const CactusLMCompleteOptions(maxTokens: 16),
         onToken: (token) {

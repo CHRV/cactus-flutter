@@ -1,10 +1,15 @@
 import 'dart:async';
 
+import 'package:cactus/models/tools.dart';
+
 /// Defines the execution mode for a completion request.
 ///
 /// [local] runs inference entirely on-device. [cloud] runs inference on
 /// Cactus servers. [hybrid] attempts local first and falls back to cloud.
 enum CompletionMode { local, cloud, hybrid }
+
+/// The role of a message sender in a conversation.
+enum CactusLMRole { system, user, assistant, tool }
 
 /// Callback invoked for each token as it is generated during streaming.
 typedef CactusTokenCallback = void Function(String token);
@@ -29,6 +34,9 @@ typedef CactusCompletionResult = CactusLMCompleteResult;
 /// Alias for [CactusLMCompleteOptions].
 typedef CactusInitParams = CactusLMCompleteOptions;
 
+/// Alias for [CactusTool] for backwards compatibility.
+typedef CactusLMTool = CactusTool;
+
 /// Configuration for loading a Cactus model.
 class CactusModelOptions {
   /// The quantization format to use (e.g. `'int8'`, `'int4'`).
@@ -49,8 +57,8 @@ class CactusModelOptions {
 
 /// A message in a multi-turn conversation with a language model.
 class CactusLMMessage {
-  /// The role of the message sender (e.g. `'system'`, `'user'`, `'assistant'`).
-  final String role;
+  /// The role of the message sender.
+  final CactusLMRole role;
 
   /// The text content of the message, or null for tool calls.
   final String? content;
@@ -58,66 +66,46 @@ class CactusLMMessage {
   /// Base64-encoded images attached to the message.
   final List<String> images;
 
+  /// Audio file paths attached to the message (for multimodal models).
+  final List<String> audio;
+
   /// Creates a [CactusLMMessage].
   ///
   /// [role]: The sender role.
   /// [content]: The text content (optional).
   /// [images]: Base64 image strings (default empty).
+  /// [audio]: Audio file paths (default empty).
   CactusLMMessage({
     required this.role,
     this.content,
     this.images = const [],
+    this.audio = const [],
   });
 
-  /// Serializes this message to a JSON-compatible map.
-  Map<String, dynamic> toJson() => {
-        'role': role,
-        if (content != null) 'content': content,
-        if (images.isNotEmpty) 'images': images,
-      };
-}
-
-/// A tool or function that the model may invoke.
-class CactusLMTool {
-  /// The name of the tool.
-  final String name;
-
-  /// A description of what the tool does.
-  final String description;
-
-  /// A JSON Schema object describing the expected parameters.
-  final Map<String, dynamic> parameters;
-
-  /// Creates a [CactusLMTool].
-  ///
-  /// [name]: The tool name.
-  /// [description]: The tool description.
-  /// [parameters]: JSON Schema for the parameters.
-  CactusLMTool({
-    required this.name,
-    required this.description,
-    required this.parameters,
-  });
-
-  /// Constructs a [CactusLMTool] from a JSON map that may use either a
-  /// top-level or nested `'function'` key.
-  factory CactusLMTool.fromJson(Map<String, dynamic> json) {
-    final fn = json['function'] as Map<String, dynamic>?;
-    return CactusLMTool(
-      name: (fn?['name'] ?? json['name']) as String,
-      description: (fn?['description'] ?? json['description']) as String,
-      parameters: (fn?['parameters'] ?? json['parameters']) as Map<String, dynamic>,
+  /// Creates a [CactusLMMessage] with a string role for convenience.
+  factory CactusLMMessage.fromRoleString(
+    String role, {
+    String? content,
+    List<String>? images,
+    List<String>? audio,
+  }) {
+    return CactusLMMessage(
+      role: CactusLMRole.values.firstWhere(
+        (r) => r.name == role,
+        orElse: () => CactusLMRole.user,
+      ),
+      content: content,
+      images: images ?? const [],
+      audio: audio ?? const [],
     );
   }
 
-  /// Serializes this tool to the OpenAI-compatible JSON format.
+  /// Serializes this message to a JSON-compatible map.
   Map<String, dynamic> toJson() => {
-        'type': 'function',
-        'function': {
-          'name': name,
-          'description': description,
-          'parameters': parameters,
-        },
+        'role': role.name,
+        if (content != null) 'content': content,
+        if (images.isNotEmpty) 'images': images,
+        if (audio.isNotEmpty) 'audio': audio,
       };
 }
 
@@ -147,6 +135,12 @@ class CactusLMCompleteOptions {
   /// Nucleus sampling probability threshold.
   final double? topP;
 
+  /// Minimum probability threshold relative to the highest probability token.
+  final double? minP;
+
+  /// Penalizes repeated tokens (1.0 disables).
+  final double? repetitionPenalty;
+
   /// Maximum number of tokens to generate.
   final int maxTokens;
 
@@ -168,6 +162,18 @@ class CactusLMCompleteOptions {
   /// If true, enables the model's extended reasoning / thinking mode.
   final bool? enableThinking;
 
+  /// Select top-k relevant tools via Tool RAG (0 = disabled, use all tools).
+  final int? toolRagTopK;
+
+  /// Automatically attempt cloud handoff when confidence is low.
+  final bool? autoHandoff;
+
+  /// Timeout in milliseconds for cloud handoff requests.
+  final int? cloudTimeoutMs;
+
+  /// Allow cloud handoff for requests that include images.
+  final bool? handoffWithImages;
+
   /// Overrides the default completion mode for this request.
   final CompletionMode? completionMode;
 
@@ -179,6 +185,8 @@ class CactusLMCompleteOptions {
   /// [temperature]: Sampling temperature (default null).
   /// [topK]: Top-k sampling limit (default null).
   /// [topP]: Nucleus sampling threshold (default null).
+  /// [minP]: Minimum probability threshold (default null).
+  /// [repetitionPenalty]: Token repetition penalty (default null).
   /// [maxTokens]: Maximum output tokens (default 512).
   /// [stopSequences]: Stop sequences (default `['<|im_end|>', '<end_of_turn>']`).
   /// [forceTools]: Force tool invocation (default null).
@@ -186,12 +194,18 @@ class CactusLMCompleteOptions {
   /// [confidenceThreshold]: Cloud fallback threshold (default null).
   /// [includeStopSequences]: Include stop sequences in output (default null).
   /// [enableThinking]: Enable thinking mode (default null).
+  /// [toolRagTopK]: Tool RAG top-k (default null).
+  /// [autoHandoff]: Auto cloud handoff (default null).
+  /// [cloudTimeoutMs]: Cloud timeout in ms (default null).
+  /// [handoffWithImages]: Cloud handoff with images (default null).
   /// [completionMode]: Request-level mode override (default null).
   /// [cactusToken]: Cloud auth token (default null).
   const CactusLMCompleteOptions({
     this.temperature,
     this.topK,
     this.topP,
+    this.minP,
+    this.repetitionPenalty,
     this.maxTokens = 512,
     this.stopSequences = const ['<|im_end|>', '<end_of_turn>'],
     this.forceTools,
@@ -199,6 +213,10 @@ class CactusLMCompleteOptions {
     this.confidenceThreshold,
     this.includeStopSequences,
     this.enableThinking,
+    this.toolRagTopK,
+    this.autoHandoff,
+    this.cloudTimeoutMs,
+    this.handoffWithImages,
     this.completionMode,
     this.cactusToken,
   });
@@ -208,6 +226,9 @@ class CactusLMCompleteOptions {
         if (temperature != null) 'temperature': temperature,
         if (topK != null) 'top_k': topK,
         if (topP != null) 'top_p': topP,
+        if (minP != null) 'min_p': minP,
+        if (repetitionPenalty != null)
+          'repetition_penalty': repetitionPenalty,
         'max_tokens': maxTokens,
         'stop_sequences': stopSequences,
         if (forceTools != null) 'force_tools': forceTools,
@@ -216,7 +237,12 @@ class CactusLMCompleteOptions {
           'confidence_threshold': confidenceThreshold,
         if (includeStopSequences != null)
           'include_stop_sequences': includeStopSequences,
-        if (enableThinking != null) 'enable_thinking': enableThinking,
+        if (enableThinking != null)
+          'enable_thinking_if_supported': enableThinking,
+        if (toolRagTopK != null) 'tool_rag_top_k': toolRagTopK,
+        if (autoHandoff != null) 'auto_handoff': autoHandoff,
+        if (cloudTimeoutMs != null) 'cloud_timeout_ms': cloudTimeoutMs,
+        if (handoffWithImages != null) 'handoff_with_images': handoffWithImages,
         if (completionMode != null) 'completion_mode': completionMode!.name,
         if (cactusToken != null) 'cactus_token': cactusToken,
       };
@@ -476,6 +502,12 @@ class CactusSTTTranscribeOptions {
   /// Whether stop sequences should be included in the output.
   final bool? includeStopSequences;
 
+  /// Words or phrases to boost recognition probability.
+  final List<String>? customVocabulary;
+
+  /// Log-probability bias for [customVocabulary] tokens (0.0–20.0).
+  final double? vocabularyBoost;
+
   /// Creates [CactusSTTTranscribeOptions] with optional overrides.
   ///
   /// [temperature]: Sampling temperature (default null).
@@ -488,6 +520,8 @@ class CactusSTTTranscribeOptions {
   /// [confidenceThreshold]: Confidence floor (default null).
   /// [cloudHandoffThreshold]: Cloud handoff threshold (default null).
   /// [includeStopSequences]: Include stop sequences (default null).
+  /// [customVocabulary]: Custom vocabulary list (default null).
+  /// [vocabularyBoost]: Vocabulary boost strength (default null).
   const CactusSTTTranscribeOptions({
     this.temperature,
     this.topK,
@@ -499,6 +533,8 @@ class CactusSTTTranscribeOptions {
     this.confidenceThreshold,
     this.cloudHandoffThreshold,
     this.includeStopSequences,
+    this.customVocabulary,
+    this.vocabularyBoost,
   });
 
   /// Serializes these options to a JSON-compatible map.
@@ -516,6 +552,8 @@ class CactusSTTTranscribeOptions {
           'cloud_handoff_threshold': cloudHandoffThreshold,
         if (includeStopSequences != null)
           'include_stop_sequences': includeStopSequences,
+        if (customVocabulary != null) 'custom_vocabulary': customVocabulary,
+        if (vocabularyBoost != null) 'vocabulary_boost': vocabularyBoost,
       };
 }
 
@@ -615,17 +653,27 @@ class CactusSTTStreamTranscribeStartOptions {
   /// The expected language of the audio.
   final String? language;
 
+  /// Words or phrases to boost recognition probability.
+  final List<String>? customVocabulary;
+
+  /// Log-probability bias for [customVocabulary] tokens (0.0–20.0).
+  final double? vocabularyBoost;
+
   /// Creates [CactusSTTStreamTranscribeStartOptions] with optional overrides.
   ///
   /// [confirmationThreshold]: Confidence threshold (default null).
   /// [minChunkSize]: Minimum chunk size (default null).
   /// [telemetryEnabled]: Telemetry opt-in (default null).
   /// [language]: Expected language (default null).
+  /// [customVocabulary]: Custom vocabulary list (default null).
+  /// [vocabularyBoost]: Vocabulary boost strength (default null).
   const CactusSTTStreamTranscribeStartOptions({
     this.confirmationThreshold,
     this.minChunkSize,
     this.telemetryEnabled,
     this.language,
+    this.customVocabulary,
+    this.vocabularyBoost,
   });
 
   /// Serializes these options to a JSON-compatible map.
@@ -635,6 +683,8 @@ class CactusSTTStreamTranscribeStartOptions {
         if (minChunkSize != null) 'min_chunk_size': minChunkSize,
         if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
         if (language != null) 'language': language,
+        if (customVocabulary != null) 'custom_vocabulary': customVocabulary,
+        if (vocabularyBoost != null) 'vocabulary_boost': vocabularyBoost,
       };
 }
 
@@ -1217,6 +1267,9 @@ class CactusModel {
 
   /// Whether this model supports vision / image inputs.
   bool get supportsVision => capabilities.contains('vision');
+
+  /// Whether this model supports thinking / reasoning.
+  bool get supportsThinking => capabilities.contains('thinking');
 
   /// The size in MB of the int4 quantization variant, or 0.
   int get sizeMb => quantization['int4']?.sizeMb ?? 0;

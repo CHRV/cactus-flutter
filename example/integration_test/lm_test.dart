@@ -71,7 +71,9 @@ void main() {
 
     test('complete returns a result', () async {
       final result = await lm.complete(
-        messages: [CactusLMMessage(role: 'user', content: 'Say hi.')],
+        messages: [
+          CactusLMMessage(role: CactusLMRole.user, content: 'Say hi.')
+        ],
         options: const CactusLMCompleteOptions(maxTokens: 16),
       );
       expect(result.success, isTrue);
@@ -81,7 +83,9 @@ void main() {
     test('complete with onToken callback', () async {
       final tokens = <String>[];
       final result = await lm.complete(
-        messages: [CactusLMMessage(role: 'user', content: 'Say hi.')],
+        messages: [
+          CactusLMMessage(role: CactusLMRole.user, content: 'Say hi.')
+        ],
         options: const CactusLMCompleteOptions(maxTokens: 16),
         onToken: (token) {
           tokens.add(token);
@@ -132,18 +136,24 @@ void main() {
 
     test('prefill returns result', () async {
       final result = await lm
-          .prefill(messages: [CactusLMMessage(role: 'user', content: 'Hi')]);
+          .prefill(messages: [
+            CactusLMMessage(role: CactusLMRole.user, content: 'Hi')
+          ]);
       expect(result.success, isTrue);
     }, timeout: _timeout);
 
     test('reset clears context', () async {
       await lm.complete(
-        messages: [CactusLMMessage(role: 'user', content: 'Remember: 42')],
+        messages: [
+          CactusLMMessage(role: CactusLMRole.user, content: 'Remember: 42')
+        ],
         options: const CactusLMCompleteOptions(maxTokens: 16),
       );
       await lm.reset();
       final result = await lm.complete(
-        messages: [CactusLMMessage(role: 'user', content: 'What?')],
+        messages: [
+          CactusLMMessage(role: CactusLMRole.user, content: 'What?')
+        ],
         options: const CactusLMCompleteOptions(maxTokens: 16),
       );
       expect(result.success, isTrue);
@@ -156,7 +166,7 @@ void main() {
       unawaited(lm.complete(
         messages: [
           CactusLMMessage(
-              role: 'user',
+              role: CactusLMRole.user,
               content:
                   'Write a very long story with many chapters and characters')
         ],

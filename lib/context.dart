@@ -4,6 +4,7 @@ import 'dart:ffi';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 
+import 'package:cactus/models/tools.dart';
 import 'package:cactus/models/types.dart';
 import 'package:cactus/services/bindings.dart' as bindings;
 
@@ -147,7 +148,7 @@ class CactusContext {
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     CactusTokenCallback? onToken,
     List<int>? pcmData,
   }) async {
@@ -240,7 +241,7 @@ class CactusContext {
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
-    List<CactusLMTool>? tools,
+    List<CactusTool>? tools,
     List<int>? pcmData,
   }) async {
     final messagesJson = jsonEncode(messages.map((m) => m.toJson()).toList());

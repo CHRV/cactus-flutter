@@ -48,10 +48,7 @@ class _ChatPageState extends State<ChatPage> {
 
     setState(() {
       chatMessages.add(ChatMessageWithMetrics(
-        message: ChatMessage(content: message, role: 'user'),
-      ));
-      chatMessages.add(ChatMessageWithMetrics(
-        message: ChatMessage(content: '', role: 'typing'),
+        message: ChatMessage(content: message, role: CactusLMRole.user),
       ));
       _messageController.clear();
       _isLoading = true;
@@ -64,10 +61,8 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _llmCall() async {
-    final messagesToPass = chatMessages
-        .where((m) => m.message.role != 'typing')
-        .map((m) => m.message)
-        .toList();
+    final messagesToPass =
+        chatMessages.map((m) => m.message).toList();
     debugPrint(
         "Messages to pass: ${messagesToPass.map((m) => "[${m.role}] ${m.content}").join(", ")}");
 
@@ -76,23 +71,17 @@ class _ChatPageState extends State<ChatPage> {
 
     await for (final chunk in res.stream) {
       setState(() {
-        // Remove typing indicator if it exists
         if (chatMessages.isNotEmpty &&
-            chatMessages.last.message.role == 'typing') {
-          chatMessages.removeLast();
-        }
-
-        if (chatMessages.isNotEmpty &&
-            chatMessages.last.message.role == 'assistant') {
+            chatMessages.last.message.role == CactusLMRole.assistant) {
           chatMessages[chatMessages.length - 1] = ChatMessageWithMetrics(
             message: ChatMessage(
               content: (chatMessages.last.message.content ?? '') + chunk,
-              role: 'assistant',
+              role: CactusLMRole.assistant,
             ),
           );
         } else {
           chatMessages.add(ChatMessageWithMetrics(
-            message: ChatMessage(content: chunk, role: 'assistant'),
+            message: ChatMessage(content: chunk, role: CactusLMRole.assistant),
           ));
         }
       });
@@ -110,7 +99,7 @@ class _ChatPageState extends State<ChatPage> {
     // Update the last assistant message with metrics
     setState(() {
       if (chatMessages.isNotEmpty &&
-          chatMessages.last.message.role == 'assistant') {
+          chatMessages.last.message.role == CactusLMRole.assistant) {
         chatMessages[chatMessages.length - 1] = ChatMessageWithMetrics(
           message: chatMessages.last.message,
           metrics: result,
@@ -315,10 +304,7 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUser = message.role == 'user';
-    final isTyping = message.role == 'typing';
-
-    if (isUser) {
+    if (message.role == CactusLMRole.user) {
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
         child: Row(
@@ -342,10 +328,6 @@ class _MessageBubble extends StatelessWidget {
           ],
         ),
       );
-    }
-
-    if (isTyping) {
-      return _TypingIndicator();
     }
 
     return _AssistantMessageBubble(message: message, result: result);

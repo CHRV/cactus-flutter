@@ -179,8 +179,8 @@ class _VisionPageState extends State<VisionPage> {
       final streamedResult = await lm.generateCompletionStream(
         params: CactusCompletionParams(maxTokens: 200),
         messages: [
-          ChatMessage(content: 'You are a helpful AI assistant that can analyze images.', role: "system"),
-          ChatMessage(content: 'Describe this image', role: "user", images: [selectedImagePath!])
+          ChatMessage(content: 'You are a helpful AI assistant that can analyze images.', role: CactusLMRole.system),
+          ChatMessage(content: 'Describe this image', role: CactusLMRole.user, images: [selectedImagePath!])
         ],
       );
       await for (final chunk in streamedResult.stream) {

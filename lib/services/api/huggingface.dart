@@ -18,6 +18,7 @@ const _kKnownCapabilities = <String>{
   'image-embed',
   'text-embed',
   'speaker-embed',
+  'thinking',
   'diarization',
   'apple-npu',
 };

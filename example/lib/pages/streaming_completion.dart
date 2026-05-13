@@ -140,8 +140,8 @@ class _StreamingCompletionPageState extends State<StreamingCompletionPage> {
     try {
       final streamedResult = await lm.generateCompletionStream(
         messages: [
-          ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: "system"),
-          ChatMessage(content: 'Hi, how are you?', role: "user")
+          ChatMessage(content: 'You are Cactus, a very capable AI assistant running offline on a smartphone', role: CactusLMRole.system),
+          ChatMessage(content: 'Hi, how are you?', role: CactusLMRole.user)
         ],
       );
       await for (final chunk in streamedResult.stream) {

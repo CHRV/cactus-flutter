@@ -119,18 +119,20 @@ class CactusTool {
     };
   }
 
-  /// Deserializes a [CactusTool] from an OpenAI-compatible JSON map.
+  /// Deserializes a [CactusTool] from a JSON map that may use either a
+  /// top-level or nested `'function'` key.
   ///
-  /// [json]: The source map containing a `function` key with `name`,
-  /// `description`, and `parameters` sub-keys.
+  /// [json]: The source map containing tool definition.
   /// Returns: A new [CactusTool] instance.
   factory CactusTool.fromJson(Map<String, dynamic> json) {
-    final function = json['function'] as Map<String, dynamic>;
+    final fn = json['function'] as Map<String, dynamic>?;
     return CactusTool(
-      name: function['name'] as String,
-      description: function['description'] as String,
+      name: (fn?['name'] ?? json['name'] ?? '') as String,
+      description: (fn?['description'] ?? json['description'] ?? '') as String,
       parameters: ToolParametersSchema.fromJson(
-          function['parameters'] as Map<String, dynamic>),
+        (fn?['parameters'] ?? json['parameters'] ?? const {})
+            as Map<String, dynamic>,
+      ),
     );
   }
 }
