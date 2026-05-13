@@ -22,8 +22,7 @@ class _VisionPageState extends State<VisionPage> {
   bool isInitializing = false;
   bool isGenerating = false;
   bool isStreaming = false;
-  String outputText =
-      'Ready to start. Select a vision model and pick an image.';
+  String outputText = 'Ready to start. Select a vision model and pick an image.';
   String? lastResponse;
   double lastTPS = 0;
   double lastTTFT = 0;
@@ -31,11 +30,6 @@ class _VisionPageState extends State<VisionPage> {
   String selectedQuantization = 'int4';
   bool usePro = false;
   String? selectedImagePath;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -51,21 +45,15 @@ class _VisionPageState extends State<VisionPage> {
       maxHeight: 512,
       imageQuality: 85,
     );
-
     if (image != null) {
       final appDir = await getApplicationDocumentsDirectory();
       final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final savedPath = p.join(appDir.path, 'images', fileName);
-
       final imageDir = Directory(p.dirname(savedPath));
-      if (!await imageDir.exists()) {
-        await imageDir.create(recursive: true);
-      }
-
+      if (!await imageDir.exists()) await imageDir.create(recursive: true);
       await File(image.path).copy(savedPath);
       return savedPath;
     }
-
     return null;
   }
 
@@ -74,30 +62,24 @@ class _VisionPageState extends State<VisionPage> {
     if (path != null) {
       setState(() {
         selectedImagePath = path;
-        outputText =
-            'Image selected! Click "Download Model" if needed, then "Analyze Image".';
+        outputText = 'Image selected! Click "Download Model" if needed, then "Analyze Image".';
       });
     }
   }
 
   Future<void> download() async {
     if (selectedModel == null) {
-      setState(() {
-        outputText = 'Please select a vision model first.';
-      });
+      setState(() => outputText = 'Please select a vision model first.');
       return;
     }
-
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-
     try {
       _lm = CactusLM(
         model: selectedModel!.slug,
-        options:
-            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -105,79 +87,60 @@ class _VisionPageState extends State<VisionPage> {
         pro: usePro,
         onProgress: (progress, status, isError) {
           setState(() {
-            if (isError) {
-              outputText = 'Error: $status';
-            } else {
+            if (isError) outputText = 'Error: $status';
+            else {
               outputText = status;
-              if (progress != null) {
-                outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
-              }
+              if (progress != null) outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
             }
           });
         },
       );
       setState(() {
         isModelDownloaded = true;
-        outputText =
-            'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error downloading model: $e';
-      });
+      setState(() => outputText = 'Error downloading model: $e');
     } finally {
-      setState(() {
-        isDownloading = false;
-      });
+      setState(() => isDownloading = false);
     }
   }
 
   Future<void> initializeModel() async {
     if (selectedModel == null) {
-      setState(() {
-        outputText = 'Please select a vision model first.';
-      });
+      setState(() => outputText = 'Please select a vision model first.');
       return;
     }
-
     setState(() {
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText =
-            'Model initialized successfully! Pick an image to analyze.';
+        outputText = 'Model initialized successfully! Pick an image to analyze.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error initializing model: $e';
-      });
+      setState(() => outputText = 'Error initializing model: $e');
     } finally {
-      setState(() {
-        isInitializing = false;
-      });
+      setState(() => isInitializing = false);
     }
   }
 
   Future<void> analyzeImage() async {
     if (!isModelLoaded) {
-      setState(() {
-        outputText = 'Please download and initialize model first.';
-      });
+      setState(() => outputText = 'Please download and initialize model first.');
       return;
     }
-
     if (selectedImagePath == null) {
-      setState(() {
-        outputText = 'Please pick an image first.';
-      });
+      setState(() => outputText = 'Please pick an image first.');
       return;
     }
-
     setState(() {
       isGenerating = true;
       isStreaming = false;
@@ -186,22 +149,14 @@ class _VisionPageState extends State<VisionPage> {
       lastTPS = 0;
       lastTTFT = 0;
     });
-
     try {
       final streamedResult = await lm.generateCompletionStream(
         params: CactusCompletionParams(maxTokens: 200),
         messages: [
-          ChatMessage(
-              content:
-                  'You are a helpful AI assistant that can analyze images.',
-              role: "system"),
-          ChatMessage(
-              content: 'Describe this image',
-              role: "user",
-              images: [selectedImagePath!])
+          ChatMessage(content: 'You are a helpful AI assistant that can analyze images.', role: "system"),
+          ChatMessage(content: 'Describe this image', role: "user", images: [selectedImagePath!])
         ],
       );
-
       await for (final chunk in streamedResult.stream) {
         setState(() {
           if (!isStreaming) {
@@ -212,7 +167,6 @@ class _VisionPageState extends State<VisionPage> {
           lastResponse = (lastResponse ?? '') + chunk;
         });
       }
-
       final resp = await streamedResult.result;
       if (resp.success) {
         setState(() {
@@ -257,238 +211,12 @@ class _VisionPageState extends State<VisionPage> {
         foregroundColor: Colors.black,
         elevation: 1,
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 56),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isDownloading || selectedModel == null
-                            ? null
-                            : download,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: isDownloading
-                            ? const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Downloading...'),
-                                ],
-                              )
-                            : Text(isModelDownloaded
-                                ? 'Downloaded ✓'
-                                : 'Download Model'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isInitializing || selectedModel == null
-                            ? null
-                            : initializeModel,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: isInitializing
-                            ? const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Initializing...'),
-                                ],
-                              )
-                            : Text(isModelLoaded
-                                ? 'Initialized ✓'
-                                : 'Initialize Model'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: handleImagePick,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text(selectedImagePath == null
-                            ? 'Pick Image'
-                            : 'Change Image'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: (isDownloading ||
-                                isInitializing ||
-                                isGenerating ||
-                                !isModelLoaded ||
-                                selectedImagePath == null)
-                            ? null
-                            : analyzeImage,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: isGenerating && !isStreaming
-                            ? const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Processing...'),
-                                ],
-                              )
-                            : const Text('Analyze Image'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                if (selectedImagePath != null)
-                  Container(
-                    height: 150,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(selectedImagePath!),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.white,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Output:',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.black),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(outputText,
-                            style: const TextStyle(color: Colors.black)),
-                        if (lastResponse != null) ...[
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Response:',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black),
-                          ),
-                          const SizedBox(height: 4),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: Text(lastResponse!,
-                                  style: const TextStyle(color: Colors.black)),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Column(
-                                children: [
-                                  const Text('Model',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black)),
-                                  Text(selectedModel?.slug ?? '',
-                                      style:
-                                          const TextStyle(color: Colors.black)),
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  const Text('TTFT',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black)),
-                                  Text('${lastTTFT.toStringAsFixed(2)} ms',
-                                      style:
-                                          const TextStyle(color: Colors.black)),
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  const Text('TPS',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black)),
-                                  Text(lastTPS.toStringAsFixed(2),
-                                      style:
-                                          const TextStyle(color: Colors.black)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: ModelSelectorWidget(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ModelSelectorWidget(
               initialModel: 'qwen3-0.6b',
               capabilityFilter: 'vision',
               onModelSelected: (model) => setState(() {
@@ -496,15 +224,150 @@ class _VisionPageState extends State<VisionPage> {
                 isModelDownloaded = false;
                 isModelLoaded = false;
               }),
-              onQuantizationChanged: (q) => setState(() {
-                selectedQuantization = q;
-              }),
-              onProChanged: (p) => setState(() {
-                usePro = p;
-              }),
+              onQuantizationChanged: (q) => setState(() => selectedQuantization = q),
+              onProChanged: (p) => setState(() => usePro = p),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: (isDownloading || selectedModel == null) ? null : download,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isDownloading
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                              SizedBox(width: 8),
+                              Text('Downloading...'),
+                            ],
+                          )
+                        : Text(isModelDownloaded ? 'Downloaded ✓' : 'Download Model'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: (isInitializing || selectedModel == null) ? null : initializeModel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isInitializing
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                              SizedBox(width: 8),
+                              Text('Initializing...'),
+                            ],
+                          )
+                        : Text(isModelLoaded ? 'Initialized ✓' : 'Initialize Model'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: handleImagePick,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(selectedImagePath == null ? 'Pick Image' : 'Change Image'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: (isDownloading || isInitializing || isGenerating || !isModelLoaded || selectedImagePath == null) ? null : analyzeImage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: isGenerating && !isStreaming
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                              SizedBox(width: 8),
+                              Text('Processing...'),
+                            ],
+                          )
+                        : const Text('Analyze Image'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (selectedImagePath != null)
+              Container(
+                height: 150,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(File(selectedImagePath!), fit: BoxFit.contain),
+                ),
+              ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Output:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                    const SizedBox(height: 8),
+                    Text(outputText, style: const TextStyle(color: Colors.black)),
+                    if (lastResponse != null) ...[
+                      const SizedBox(height: 16),
+                      const Text('Response:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Text(lastResponse!, style: const TextStyle(color: Colors.black)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(children: [
+                            const Text('Model', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                            Text(selectedModel?.slug ?? '', style: const TextStyle(color: Colors.black)),
+                          ]),
+                          Column(children: [
+                            const Text('TTFT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                            Text('${lastTTFT.toStringAsFixed(2)} ms', style: const TextStyle(color: Colors.black)),
+                          ]),
+                          Column(children: [
+                            const Text('TPS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                            Text(lastTPS.toStringAsFixed(2), style: const TextStyle(color: Colors.black)),
+                          ]),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -22,29 +22,33 @@ void main() {
       lm.destroy();
     });
 
-test('complete with tool call', () async {
+    test('complete with tool call', () async {
       final result = await lm.complete(
         messages: [
           CactusLMMessage(
             role: 'system',
-            content: 'You are a helpful assistant. When the user asks a question that requires a calculation, ALWAYS call the calculator tool with the appropriate expression.',
+            content:
+                'You are a helpful assistant. When the user asks a question that requires a calculation, ALWAYS call the calculator tool with the appropriate expression.',
           ),
           CactusLMMessage(
             role: 'user',
             content: 'What is 2 + 2?',
           ),
         ],
-        options: const CactusLMCompleteOptions(maxTokens: 512, forceTools: true),
+        options:
+            const CactusLMCompleteOptions(maxTokens: 512, forceTools: true),
         tools: [
           CactusLMTool(
             name: 'calculator',
-            description: 'A simple calculator that evaluates mathematical expressions.',
+            description:
+                'A simple calculator that evaluates mathematical expressions.',
             parameters: {
               'type': 'object',
               'properties': {
                 'expression': {
                   'type': 'string',
-                  'description': 'The mathematical expression to evaluate, e.g. "2 + 2"',
+                  'description':
+                      'The mathematical expression to evaluate, e.g. "2 + 2"',
                 },
               },
               'required': ['expression'],
@@ -52,7 +56,8 @@ test('complete with tool call', () async {
           ),
         ],
       );
-      debugPrint('function call result: success=${result.success}, response="${result.response}", toolCalls=${result.toolCalls}, functionCalls=${result.functionCalls}');
+      debugPrint(
+          'function call result: success=${result.success}, response="${result.response}", toolCalls=${result.toolCalls}, functionCalls=${result.functionCalls}');
       expect(result.success, isTrue);
       expect(result.toolCalls, isNotNull);
       expect(result.toolCalls!.isNotEmpty, isTrue);

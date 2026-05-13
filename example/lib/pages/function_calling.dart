@@ -38,6 +38,10 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
   }
 
   Future<void> download() async {
+    if (selectedModel == null) {
+      setState(() => outputText = 'Please select a model first.');
+      return;
+    }
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
@@ -45,8 +49,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
     try {
       _lm ??= CactusLM(
         model: selectedModel!.slug,
-        options:
-            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -54,54 +57,48 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
         pro: usePro,
         onProgress: (progress, status, isError) {
           setState(() {
-            if (isError) {
-              outputText = 'Error: $status';
-            } else {
+            if (isError) outputText = 'Error: $status';
+            else {
               outputText = status;
-              if (progress != null) {
-                outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
-              }
+              if (progress != null) outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
             }
           });
         },
       );
       setState(() {
         isModelDownloaded = true;
-        outputText =
-            'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error downloading model: $e';
-      });
+      setState(() => outputText = 'Error downloading model: $e');
     } finally {
-      setState(() {
-        isDownloading = false;
-      });
+      setState(() => isDownloading = false);
     }
   }
 
   Future<void> initializeModel() async {
+    if (selectedModel == null) {
+      setState(() => outputText = 'Please select a model first.');
+      return;
+    }
     setState(() {
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText =
-            'Model initialized successfully! Ready to generate completions.';
+        outputText = 'Model initialized successfully! Ready to generate completions.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error initializing model: $e';
-      });
+      setState(() => outputText = 'Error initializing model: $e');
     } finally {
-      setState(() {
-        isInitializing = false;
-      });
+      setState(() => isInitializing = false);
     }
   }
 
@@ -225,7 +222,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: isDownloading ? null : download,
+                    onPressed: (isDownloading || selectedModel == null) ? null : download,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -253,7 +250,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: isInitializing ? null : initializeModel,
+                    onPressed: (isInitializing || isDownloading || selectedModel == null) ? null : initializeModel,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

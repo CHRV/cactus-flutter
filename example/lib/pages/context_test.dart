@@ -30,27 +30,24 @@ class _ContextTestPageState extends State<ContextTestPage> {
   bool usePro = false;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _lm?.unload();
     super.dispose();
   }
 
   Future<void> download() async {
+    if (selectedModel == null) {
+      setState(() => outputText = 'Please select a model first.');
+      return;
+    }
     setState(() {
       isDownloading = true;
       outputText = 'Downloading model...';
     });
-
     try {
       _lm ??= CactusLM(
         model: selectedModel!.slug,
-        options:
-            CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
       await lm.download(
         model: selectedModel!.slug,
@@ -58,65 +55,56 @@ class _ContextTestPageState extends State<ContextTestPage> {
         pro: usePro,
         onProgress: (progress, status, isError) {
           setState(() {
-            if (isError) {
-              outputText = 'Error: $status';
-            } else {
+            if (isError) outputText = 'Error: $status';
+            else {
               outputText = status;
-              if (progress != null) {
-                outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
-              }
+              if (progress != null) outputText += ' (${(progress * 100).toStringAsFixed(1)}%)';
             }
           });
         },
       );
       setState(() {
         isModelDownloaded = true;
-        outputText =
-            'Model downloaded successfully! Click "Initialize Model" to load it.';
+        outputText = 'Model downloaded successfully! Click "Initialize Model" to load it.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error downloading model: $e';
-      });
+      setState(() => outputText = 'Error downloading model: $e');
     } finally {
-      setState(() {
-        isDownloading = false;
-      });
+      setState(() => isDownloading = false);
     }
   }
 
   Future<void> initializeModel() async {
+    if (selectedModel == null) {
+      setState(() => outputText = 'Please select a model first.');
+      return;
+    }
     setState(() {
       isInitializing = true;
       outputText = 'Initializing model...';
     });
-
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
-        outputText =
-            'Model initialized successfully! Ready to run 4K context test.';
+        outputText = 'Model initialized successfully! Ready to run 4K context test.';
       });
     } catch (e) {
-      setState(() {
-        outputText = 'Error initializing model: $e';
-      });
+      setState(() => outputText = 'Error initializing model: $e');
     } finally {
-      setState(() {
-        isInitializing = false;
-      });
+      setState(() => isInitializing = false);
     }
   }
 
   Future<void> run4KContextTest() async {
     if (!isModelLoaded) {
-      setState(() {
-        outputText = 'Please download and initialize model first.';
-      });
+      setState(() => outputText = 'Please download and initialize model first.');
       return;
     }
-
     setState(() {
       isRunningTest = true;
       outputText = 'Running 4K context test...';
@@ -128,22 +116,16 @@ class _ContextTestPageState extends State<ContextTestPage> {
       testDecodeTokens = 0;
       testTotalTokens = 0;
     });
-
     try {
       StringBuffer systemContent = StringBuffer('/no_think You are helpful. ');
       for (int i = 0; i < 230; i++) {
         systemContent.write('Context $i: Background knowledge. ');
       }
-
       StringBuffer userContent = StringBuffer();
       for (int i = 0; i < 230; i++) {
-        final dataValue = i * 3.14159;
-        userContent.write('Data $i = $dataValue. ');
+        userContent.write('Data $i = ${i * 3.14159}. ');
       }
       userContent.write('Explain the data.');
-
-      debugPrint('System message length: ${systemContent.length} chars');
-      debugPrint('User message length: ${userContent.length} chars');
 
       final resp = await lm.generateCompletion(messages: [
         ChatMessage(content: systemContent.toString(), role: "system"),
@@ -162,19 +144,26 @@ class _ContextTestPageState extends State<ContextTestPage> {
           outputText = '4K context test completed successfully!';
         });
       } else {
-        setState(() {
-          outputText = 'Test failed to generate response.';
-        });
+        setState(() => outputText = 'Test failed to generate response.');
       }
     } catch (e) {
-      setState(() {
-        outputText = 'Error running test: $e';
-      });
+      setState(() => outputText = 'Error running test: $e');
     } finally {
-      setState(() {
-        isRunningTest = false;
-      });
+      setState(() => isRunningTest = false);
     }
+  }
+
+  Widget _buildMetricRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('$label:', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(color: Colors.black)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -187,213 +176,115 @@ class _ContextTestPageState extends State<ContextTestPage> {
         foregroundColor: Colors.black,
         elevation: 1,
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 56),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: isDownloading ? null : download,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: isDownloading
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Downloading...'),
-                          ],
-                        )
-                      : Text(isModelDownloaded
-                          ? 'Model Downloaded ✓'
-                          : 'Download Model'),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: (isInitializing || isDownloading)
-                      ? null
-                      : initializeModel,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: isInitializing
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Initializing...'),
-                          ],
-                        )
-                      : Text(isModelLoaded
-                          ? 'Model Initialized ✓'
-                          : 'Initialize Model'),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: (isDownloading ||
-                          isInitializing ||
-                          isRunningTest ||
-                          !isModelLoaded)
-                      ? null
-                      : run4KContextTest,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: isRunningTest
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Running Test...'),
-                          ],
-                        )
-                      : const Text('Run 4K Context Test'),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.white,
-                    ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Test Results:',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.black),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(outputText,
-                              style: const TextStyle(color: Colors.black)),
-                          if (testResponse != null) ...[
-                            const SizedBox(height: 16),
-                            const Divider(color: Colors.black),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Performance Metrics:',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.black),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildMetricRow('Model', selectedModel?.slug ?? ''),
-                            _buildMetricRow('Time to First Token',
-                                '${testTTFT.toStringAsFixed(2)} ms'),
-                            _buildMetricRow('Total Time',
-                                '${testTotalTime.toStringAsFixed(2)} ms'),
-                            _buildMetricRow('Tokens Per Second',
-                                testTPS.toStringAsFixed(2)),
-                            _buildMetricRow(
-                                'Prefill Tokens', '$testPrefillTokens'),
-                            _buildMetricRow(
-                                'Decode Tokens', '$testDecodeTokens'),
-                            _buildMetricRow('Total Tokens', '$testTotalTokens'),
-                            const SizedBox(height: 16),
-                            const Divider(color: Colors.black),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Response:',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.black),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              testResponse!,
-                              style: const TextStyle(color: Colors.black),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: ModelSelectorWidget(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ModelSelectorWidget(
               initialModel: 'qwen3-0.6b',
               capabilityFilter: 'completion',
-              onModelSelected: (model) => setState(() {
-                selectedModel = model;
-              }),
-              onQuantizationChanged: (q) => setState(() {
-                selectedQuantization = q;
-              }),
-              onProChanged: (p) => setState(() {
-                usePro = p;
-              }),
+              onModelSelected: (model) => setState(() => selectedModel = model),
+              onQuantizationChanged: (q) => setState(() => selectedQuantization = q),
+              onProChanged: (p) => setState(() => usePro = p),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '$label:',
-            style: const TextStyle(
-                color: Colors.black, fontWeight: FontWeight.w500),
-          ),
-          Text(
-            value,
-            style: const TextStyle(color: Colors.black),
-          ),
-        ],
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: (isDownloading || selectedModel == null) ? null : download,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+              ),
+              child: isDownloading
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                        SizedBox(width: 8),
+                        Text('Downloading...'),
+                      ],
+                    )
+                  : Text(isModelDownloaded ? 'Model Downloaded ✓' : 'Download Model'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: (isInitializing || isDownloading || selectedModel == null) ? null : initializeModel,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+              ),
+              child: isInitializing
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                        SizedBox(width: 8),
+                        Text('Initializing...'),
+                      ],
+                    )
+                  : Text(isModelLoaded ? 'Model Initialized ✓' : 'Initialize Model'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: (isDownloading || isInitializing || isRunningTest || !isModelLoaded) ? null : run4KContextTest,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+              ),
+              child: isRunningTest
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                        SizedBox(width: 8),
+                        Text('Running Test...'),
+                      ],
+                    )
+                  : const Text('Run 4K Context Test'),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Test Results:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                      const SizedBox(height: 8),
+                      Text(outputText, style: const TextStyle(color: Colors.black)),
+                      if (testResponse != null) ...[
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.black),
+                        const SizedBox(height: 16),
+                        const Text('Performance Metrics:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black)),
+                        const SizedBox(height: 8),
+                        _buildMetricRow('Model', selectedModel?.slug ?? ''),
+                        _buildMetricRow('Time to First Token', '${testTTFT.toStringAsFixed(2)} ms'),
+                        _buildMetricRow('Total Time', '${testTotalTime.toStringAsFixed(2)} ms'),
+                        _buildMetricRow('Tokens Per Second', testTPS.toStringAsFixed(2)),
+                        _buildMetricRow('Prefill Tokens', '$testPrefillTokens'),
+                        _buildMetricRow('Decode Tokens', '$testDecodeTokens'),
+                        _buildMetricRow('Total Tokens', '$testTotalTokens'),
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.black),
+                        const SizedBox(height: 16),
+                        const Text('Response:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black)),
+                        const SizedBox(height: 4),
+                        Text(testResponse!, style: const TextStyle(color: Colors.black)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

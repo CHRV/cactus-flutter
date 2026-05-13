@@ -37,10 +37,20 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
 
   Future<void> download() async {
     if (isDownloading) return;
+    if (selectedModel == null) {
+      setState(() {
+        outputText = 'Please select a model first.';
+      });
+      return;
+    }
     setState(() {
       isDownloading = true;
     });
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.download(
         model: selectedModel!.slug,
         quantization: selectedQuantization,
@@ -68,7 +78,18 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
       outputText = 'Initializing model...';
     });
 
+    if (selectedModel == null) {
+      setState(() {
+        outputText = 'Please select a model first.';
+      });
+      return;
+    }
+
     try {
+      _lm ??= CactusLM(
+        model: selectedModel!.slug,
+        options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
+      );
       await lm.initializeModel(model: selectedModel!.slug);
       setState(() {
         isModelLoaded = true;
@@ -184,7 +205,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: isDownloading ? null : download,
+                    onPressed: (isDownloading || selectedModel == null) ? null : download,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -212,7 +233,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: isInitializing ? null : initializeModel,
+                    onPressed: (isInitializing || isDownloading || selectedModel == null) ? null : initializeModel,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

@@ -20,7 +20,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  late CactusLM cactusLM;
+  CactusLM? _cactusLM;
+  CactusLM get cactusLM => _cactusLM!;
   final List<ChatMessageWithMetrics> chatMessages = [];
   bool _isLoading = false;
   bool _isSetup = false;
@@ -37,7 +38,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    cactusLM.unload();
+    _cactusLM?.unload();
     super.dispose();
   }
 
@@ -123,16 +124,20 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _isLoading = true;
     });
-    cactusLM = CactusLM(
+    _cactusLM = CactusLM(
       model: selectedModel!.slug,
       options:
           CactusModelOptions(quantization: selectedQuantization, pro: usePro),
     );
     try {
-      await cactusLM.download(model: selectedModel!.slug);
-      await cactusLM.initializeModel();
+      await _cactusLM!.download(model: selectedModel!.slug);
+      await _cactusLM!.initializeModel();
     } catch (e) {
       debugPrint('Failed to setup CactusLM: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      return;
     }
     setState(() {
       _isLoading = false;
