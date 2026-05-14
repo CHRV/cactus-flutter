@@ -426,13 +426,17 @@ class CactusLMTokenizeResult {
 
 /// The result of scoring a text window.
 class CactusLMScoreWindowResult {
-  /// The score assigned to the window.
+  /// The log-probability of the scored token window.
   final double score;
+
+  /// Number of tokens scored in the window.
+  final int tokens;
 
   /// Creates a [CactusLMScoreWindowResult].
   ///
-  /// [score]: The window score.
-  CactusLMScoreWindowResult({required this.score});
+  /// [score]: The window log-probability.
+  /// [tokens]: Number of tokens scored.
+  CactusLMScoreWindowResult({required this.score, this.tokens = 0});
 }
 
 /// A single chunk returned from a RAG (retrieval-augmented generation) query.
@@ -702,11 +706,41 @@ class CactusSTTStreamTranscribeProcessResult {
   /// Duration of the audio buffer processed, in milliseconds.
   final double? bufferDurationMs;
 
-  /// Confidence of the current transcription.
-  final double? confidence;
+  /// Error message if processing failed.
+  final String? error;
 
   /// Whether the chunk was handed off to cloud.
   final bool? cloudHandoff;
+
+  /// ID of the cloud job queued in this call (0 if none).
+  final int cloudJobId;
+
+  /// ID of the cloud job whose result is returned (0 if none ready).
+  final int cloudResultJobId;
+
+  /// Transcript returned by the completed cloud job.
+  final String? cloudResult;
+
+  /// Whether the completed cloud job reached a cloud API.
+  final bool? cloudResultUsedCloud;
+
+  /// Error message from the cloud job.
+  final String? cloudResultError;
+
+  /// Source of cloud result: "cloud" or "fallback".
+  final String? cloudResultSource;
+
+  /// The confirmed text as produced by the local model.
+  final String? confirmedLocal;
+
+  /// Timestamped transcription segments.
+  final List<CactusSTTStreamSegment> segments;
+
+  /// Function calls generated in this chunk.
+  final List<FunctionCall>? functionCalls;
+
+  /// Confidence of the current transcription.
+  final double? confidence;
 
   /// Milliseconds until the first token for this chunk.
   final double? timeToFirstTokenMs;
@@ -733,28 +767,23 @@ class CactusSTTStreamTranscribeProcessResult {
   final double? ramUsageMb;
 
   /// Creates a [CactusSTTStreamTranscribeProcessResult].
-  ///
-  /// [success]: Whether processing succeeded.
-  /// [confirmed]: Confirmed transcription text.
-  /// [pending]: Pending transcription text.
-  /// [bufferDurationMs]: Buffer duration in ms.
-  /// [confidence]: Confidence score.
-  /// [cloudHandoff]: Whether cloud was used.
-  /// [timeToFirstTokenMs]: Time to first token.
-  /// [totalTimeMs]: Total processing time.
-  /// [prefillTokens]: Prefill token count.
-  /// [prefillTps]: Prefill throughput.
-  /// [decodeTokens]: Decode token count.
-  /// [decodeTps]: Decode throughput.
-  /// [totalTokens]: Total token count.
-  /// [ramUsageMb]: Peak RAM usage.
   CactusSTTStreamTranscribeProcessResult({
     required this.success,
     required this.confirmed,
     required this.pending,
     this.bufferDurationMs,
-    this.confidence,
+    this.error,
     this.cloudHandoff,
+    this.cloudJobId = 0,
+    this.cloudResultJobId = 0,
+    this.cloudResult,
+    this.cloudResultUsedCloud,
+    this.cloudResultError,
+    this.cloudResultSource,
+    this.confirmedLocal,
+    this.segments = const [],
+    this.functionCalls,
+    this.confidence,
     this.timeToFirstTokenMs,
     this.totalTimeMs,
     this.prefillTokens,
@@ -763,6 +792,26 @@ class CactusSTTStreamTranscribeProcessResult {
     this.decodeTps,
     this.totalTokens,
     this.ramUsageMb,
+  });
+}
+
+/// A single transcription segment with timestamps from a streaming
+/// transcription session.
+class CactusSTTStreamSegment {
+  /// Start time in seconds relative to the beginning of the stream.
+  final double start;
+
+  /// End time in seconds relative to the beginning of the stream.
+  final double end;
+
+  /// The transcribed text for this segment.
+  final String text;
+
+  /// Creates a [CactusSTTStreamSegment].
+  const CactusSTTStreamSegment({
+    required this.start,
+    required this.end,
+    required this.text,
   });
 }
 

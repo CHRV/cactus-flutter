@@ -308,42 +308,48 @@ class CactusContext {
   // -------------------------------------------------------------------------
 
   /// Scores a sliding window of [tokens] between [start] and [end].
-  Future<CactusLMScoreWindowResult> scoreWindow({
-    required List<int> tokens,
-    required int start,
-    required int end,
-    int contextSize = 512,
-  }) async {
-    final resultJson = bindings.cactusScoreWindow(
-      _handle,
-      tokens,
-      start,
-      end,
-      contextSize,
-    );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    return CactusLMScoreWindowResult(score: data['score']?.toDouble() ?? 0.0);
-  }
+Future<CactusLMScoreWindowResult> scoreWindow({
+     required List<int> tokens,
+     required int start,
+     required int end,
+     int contextSize = 512,
+   }) async {
+     final resultJson = bindings.cactusScoreWindow(
+       _handle,
+       tokens,
+       start,
+       end,
+       contextSize,
+     );
+     final Map<String, dynamic> data = jsonDecode(resultJson);
+     return CactusLMScoreWindowResult(
+       score: data['logprob']?.toDouble() ?? 0.0,
+       tokens: data['tokens'] ?? 0,
+     );
+   }
 
   /// Scores a token window using a handle identified by raw [address].
-  static CactusLMScoreWindowResult scoreWindowWithHandle(
-    int address,
-    List<int> tokens,
-    int start,
-    int end,
-    int contextSize,
-  ) {
-    final context = CactusContext.fromAddress(address);
-    final resultJson = bindings.cactusScoreWindow(
-      context.handle,
-      tokens,
-      start,
-      end,
-      contextSize,
-    );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    return CactusLMScoreWindowResult(score: data['score']?.toDouble() ?? 0.0);
-  }
+static CactusLMScoreWindowResult scoreWindowWithHandle(
+     int address,
+     List<int> tokens,
+     int start,
+     int end,
+     int contextSize,
+   ) {
+     final context = CactusContext.fromAddress(address);
+     final resultJson = bindings.cactusScoreWindow(
+       context.handle,
+       tokens,
+       start,
+       end,
+       contextSize,
+     );
+     final Map<String, dynamic> data = jsonDecode(resultJson);
+     return CactusLMScoreWindowResult(
+       score: data['logprob']?.toDouble() ?? 0.0,
+       tokens: data['tokens'] ?? 0,
+     );
+   }
 
   // -------------------------------------------------------------------------
   // Embed text
@@ -727,26 +733,43 @@ class CactusContext {
       Pointer.fromAddress(streamAddress),
       Uint8List.fromList(pcmData),
     );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
-    return CactusSTTStreamTranscribeProcessResult(
-      success: data['success'] ?? false,
-      confirmed: data['confirmed'] ?? '',
-      pending: data['pending'] ?? '',
-      bufferDurationMs: data['buffer_duration_ms']?.toDouble(),
-      confidence: data['confidence']?.toDouble(),
-      cloudHandoff: data['cloud_handoff'],
-      timeToFirstTokenMs: data['time_to_first_token_ms']?.toDouble(),
-      totalTimeMs: data['total_time_ms']?.toDouble(),
-      prefillTokens: data['prefill_tokens'],
-      prefillTps: data['prefill_tps']?.toDouble(),
-      decodeTokens: data['decode_tokens'],
-      decodeTps: data['decode_tps']?.toDouble(),
-      totalTokens: data['total_tokens'],
-      ramUsageMb: data['ram_usage_mb']?.toDouble(),
-    );
-  }
+final Map<String, dynamic> data = jsonDecode(resultJson);
+     return CactusSTTStreamTranscribeProcessResult(
+       success: data['success'] ?? false,
+       confirmed: data['confirmed'] ?? '',
+       pending: data['pending'] ?? '',
+       bufferDurationMs: data['buffer_duration_ms']?.toDouble(),
+       error: data['error'] as String?,
+       cloudHandoff: data['cloud_handoff'] as bool?,
+       cloudJobId: data['cloud_job_id'] as int? ?? 0,
+       cloudResultJobId: data['cloud_result_job_id'] as int? ?? 0,
+       cloudResult: data['cloud_result'] as String?,
+       cloudResultUsedCloud: data['cloud_result_used_cloud'] as bool?,
+       cloudResultError: data['cloud_result_error'] as String?,
+       cloudResultSource: data['cloud_result_source'] as String?,
+       confirmedLocal: data['confirmed_local'] as String?,
+       segments: (data['segments'] as List<dynamic>?)?.map((s) =>
+           CactusSTTStreamSegment(
+             start: (s['start'] as num?)?.toDouble() ?? 0.0,
+             end: (s['end'] as num?)?.toDouble() ?? 0.0,
+             text: s['text'] as String? ?? '',
+           ))
+         .toList() ??
+         [],
+       functionCalls: _parseFunctionCalls(data),
+       confidence: data['confidence']?.toDouble(),
+       timeToFirstTokenMs: data['time_to_first_token_ms']?.toDouble(),
+       totalTimeMs: data['total_time_ms']?.toDouble(),
+       prefillTokens: data['prefill_tokens'] as int?,
+       prefillTps: data['prefill_tps']?.toDouble(),
+       decodeTokens: data['decode_tokens'] as int?,
+       decodeTps: data['decode_tps']?.toDouble(),
+       totalTokens: data['total_tokens'] as int?,
+       ramUsageMb: data['ram_usage_mb']?.toDouble(),
+     );
+   }
 
-  /// Processes a PCM chunk in a streaming session using a raw [streamAddress].
+   /// Processes a PCM chunk in a streaming session using a raw [streamAddress].
   static CactusSTTStreamTranscribeProcessResult
       streamTranscribeProcessWithHandle(
     int streamAddress,
@@ -756,24 +779,41 @@ class CactusContext {
       Pointer.fromAddress(streamAddress),
       Uint8List.fromList(pcmData),
     );
-    final Map<String, dynamic> data = jsonDecode(resultJson);
+final Map<String, dynamic> data = jsonDecode(resultJson);
     return CactusSTTStreamTranscribeProcessResult(
       success: data['success'] ?? false,
       confirmed: data['confirmed'] ?? '',
       pending: data['pending'] ?? '',
       bufferDurationMs: data['buffer_duration_ms']?.toDouble(),
+      error: data['error'] as String?,
+      cloudHandoff: data['cloud_handoff'] as bool?,
+      cloudJobId: data['cloud_job_id'] as int? ?? 0,
+      cloudResultJobId: data['cloud_result_job_id'] as int? ?? 0,
+      cloudResult: data['cloud_result'] as String?,
+      cloudResultUsedCloud: data['cloud_result_used_cloud'] as bool?,
+      cloudResultError: data['cloud_result_error'] as String?,
+      cloudResultSource: data['cloud_result_source'] as String?,
+      confirmedLocal: data['confirmed_local'] as String?,
+      segments: (data['segments'] as List<dynamic>?)?.map((s) =>
+          CactusSTTStreamSegment(
+            start: (s['start'] as num?)?.toDouble() ?? 0.0,
+            end: (s['end'] as num?)?.toDouble() ?? 0.0,
+            text: s['text'] as String? ?? '',
+          ))
+        .toList() ??
+        [],
+      functionCalls: _parseFunctionCalls(data),
       confidence: data['confidence']?.toDouble(),
-      cloudHandoff: data['cloud_handoff'],
       timeToFirstTokenMs: data['time_to_first_token_ms']?.toDouble(),
       totalTimeMs: data['total_time_ms']?.toDouble(),
-      prefillTokens: data['prefill_tokens'],
+      prefillTokens: data['prefill_tokens'] as int?,
       prefillTps: data['prefill_tps']?.toDouble(),
-      decodeTokens: data['decode_tokens'],
+      decodeTokens: data['decode_tokens'] as int?,
       decodeTps: data['decode_tps']?.toDouble(),
-      totalTokens: data['total_tokens'],
+      totalTokens: data['total_tokens'] as int?,
       ramUsageMb: data['ram_usage_mb']?.toDouble(),
     );
-  }
+   }
 
   /// Stops a streaming transcription session identified by [streamAddress].
   Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop(
