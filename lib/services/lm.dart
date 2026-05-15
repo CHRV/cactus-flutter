@@ -83,7 +83,7 @@ class CactusLM {
   ///
   /// Throws [CactusException] if a download is already in progress or the
   /// model is not found in the registry.
-  Future<DownloadHandle> download({
+  Future<DownloadHandle?> download({
     String? model,
     String? quantization,
     bool? pro,
@@ -97,19 +97,20 @@ class CactusLM {
         ? '$effectiveModel-$effectiveQuant-pro'
         : '$effectiveModel-$effectiveQuant';
 
-    if (isModelPath(effectiveModel)) throw CactusException('Cannot download file:// paths');
-    if (_isDownloading) throw CactusException('Already downloading');
+    if (isModelPath(effectiveModel)) throw InvalidModelPathException();
+    if (_isDownloading) throw AlreadyDownloadingException();
     _isDownloading = true;
 
     try {
       if (await ResumableDownloadService.modelExists(modelName)) {
-        throw CactusException('Model already downloaded');
+        _isDownloading = false;
+        return null;
       }
 
       final registry = await HuggingFace.getRegistry();
       final modelConfig = registry[effectiveModel];
       if (modelConfig == null) {
-        throw CactusException('Model $effectiveModel not found in registry');
+        throw ModelNotFoundException('Model $effectiveModel not found in registry');
       }
 
       final quantInfo = modelConfig.quantization[effectiveQuant];
@@ -170,7 +171,7 @@ class CactusLM {
       modelPath = model.replaceFirst('file://', '');
     } else {
       if (!await ResumableDownloadService.modelExists(getModelName())) {
-        throw CactusException('Model not downloaded. Call download() first.');
+        throw ModelNotDownloadedException();
       }
       modelPath = await _resolveModelPath();
     }
@@ -186,13 +187,6 @@ class CactusLM {
 
     _isInitialized = true;
   }
-
-  /// Initializes or re-initializes the model.
-  ///
-  /// [model]: Optional model identifier override.
-  /// [params]: Optional initialization parameters.
-  Future<void> initializeModel({String? model, CactusInitParams? params}) =>
-      init();
 
   /// Destroys the model context and releases all associated resources.
   void destroy() {
@@ -213,14 +207,14 @@ class CactusLM {
     CactusTokenCallback? onToken,
     List<int>? audio,
   }) async {
-    if (_isGenerating) throw CactusException('Already generating');
+    if (_isGenerating) throw AlreadyGeneratingException();
     await init();
     _isGenerating = true;
 
     try {
       return _handleLock.synchronized(() async {
         if (_context == null) {
-          throw CactusException('Model not initialized');
+          throw ModelNotInitializedException();
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
@@ -308,14 +302,14 @@ class CactusLM {
     List<CactusTool>? tools,
     List<int>? audio,
   }) async {
-    if (_isGenerating) throw CactusException('Already generating');
+    if (_isGenerating) throw AlreadyGeneratingException();
     await init();
     _isGenerating = true;
 
     try {
       return _handleLock.synchronized(() async {
         if (_context == null) {
-          throw CactusException('Model not initialized');
+          throw ModelNotInitializedException();
         }
 
         final effectiveOptions = options ?? _defaultCompleteOptions;
@@ -345,7 +339,7 @@ class CactusLM {
   /// Returns a [CactusLMTokenizeResult] containing the token IDs.
   Future<CactusLMTokenizeResult> tokenize({required String text}) async {
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return compute(_tokenizeInIsolate, {
       'handle': _context!.address,
@@ -368,7 +362,7 @@ class CactusLM {
     required int context,
   }) async {
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return compute(_scoreWindowInIsolate, {
       'handle': _context!.address,
@@ -384,11 +378,11 @@ class CactusLM {
     required String text,
     bool normalize = false,
   }) async {
-    if (_isGenerating) throw CactusException('Already generating');
+    if (_isGenerating) throw AlreadyGeneratingException();
     await init();
 
     return _handleLock.synchronized(() async {
-      if (_context == null) throw CactusException('Model not initialized');
+      if (_context == null) throw ModelNotInitializedException();
 
       return compute(_embedInIsolate, {
         'handle': _context!.address,
@@ -418,11 +412,11 @@ class CactusLM {
   Future<CactusLMImageEmbedResult> imageEmbed({
     required String imagePath,
   }) async {
-    if (_isGenerating) throw CactusException('Already generating');
+    if (_isGenerating) throw AlreadyGeneratingException();
     await init();
 
     return _handleLock.synchronized(() async {
-      if (_context == null) throw CactusException('Model not initialized');
+      if (_context == null) throw ModelNotInitializedException();
 
       return compute(_imageEmbedInIsolate, {
         'handle': _context!.address,
@@ -442,7 +436,7 @@ class CactusLM {
     int topK = 5,
   }) async {
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return compute(_ragQueryInIsolate, {
       'handle': _context!.address,

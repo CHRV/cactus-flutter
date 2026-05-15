@@ -68,7 +68,12 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
           });
         },
       );
-      setState(() => _currentDownload = handle);
+      if (handle != null) {
+        setState(() => _currentDownload = handle);
+      } else {
+        _onDownloadCompleted();
+        return;
+      }
     } catch (e) {
       setState(() {
         isDownloading = false;
@@ -116,7 +121,7 @@ class _FunctionCallingPageState extends State<FunctionCallingPage> {
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.initializeModel(model: selectedModel!.slug);
+      await lm.init();
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Ready to generate completions.';

@@ -90,7 +90,7 @@ class _EmbeddingPageState extends State<EmbeddingPage> {
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.initializeModel(model: selectedModel!.slug);
+      await lm.init();
       setState(() {
         isModelLoaded = true;
         outputText =

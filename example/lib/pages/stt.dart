@@ -105,6 +105,7 @@ class _STTPageState extends State<STTPage> {
     });
 
     try {
+      _stt = CactusSTT(model: _selectedModel);
       final handle = await _stt.download(
         model: _selectedModel,
         onProgress: (progress, message, isError) {
@@ -117,7 +118,17 @@ class _STTPageState extends State<STTPage> {
           });
         },
       );
-      setState(() => _currentSTTDownload = handle);
+      if (handle != null) {
+        setState(() => _currentSTTDownload = handle);
+      } else {
+        _onSTTDownloadCompleted();
+        return;
+      }
+    } on CactusException catch (e) {
+      setState(() {
+        _isDownloading = false;
+        _outputText = "Error: ${e.toString()}";
+      });
     } catch (e) {
       setState(() {
         _isDownloading = false;
@@ -134,7 +145,7 @@ class _STTPageState extends State<STTPage> {
       _outputText = "Model downloaded! Initializing...";
     });
     try {
-      await _stt.initializeModel(model: _selectedModel);
+      await _stt.init();
       setState(() {
         _isInitializing = false;
         _isModelLoaded = true;

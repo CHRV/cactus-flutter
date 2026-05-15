@@ -108,7 +108,7 @@ class _RAGPageState extends State<RAGPage> {
     });
 
     try {
-      await lm.initializeModel();
+      await lm.init();
       setState(() {
         isModelLoaded = true;
         outputText =

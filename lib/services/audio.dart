@@ -53,19 +53,20 @@ class CactusAudio {
   /// [onProgress]: optional callback invoked with download progress.
   /// Throws [CactusException] if a download is already in progress or the
   /// model is not found in the registry.
-  Future<DownloadHandle> download({CactusProgressCallback? onProgress}) async {
-    if (isModelPath(model)) throw CactusException('Cannot download file:// paths');
-    if (_isDownloading) throw CactusException('Already downloading');
+  Future<DownloadHandle?> download({CactusProgressCallback? onProgress}) async {
+    if (isModelPath(model)) throw InvalidModelPathException();
+    if (_isDownloading) throw AlreadyDownloadingException();
     _isDownloading = true;
     try {
       if (await ResumableDownloadService.modelExists(getModelName())) {
-        throw CactusException('Model already downloaded');
+        _isDownloading = false;
+        return null;
       }
 
       final registry = await HuggingFace.getRegistry();
       final modelConfig = registry[model];
       if (modelConfig == null) {
-        throw CactusException('Model $model not found in registry');
+        throw ModelNotFoundException('Model $model not found in registry');
       }
 
       final quantInfo = modelConfig.quantization[options.quantization];
@@ -124,7 +125,7 @@ class CactusAudio {
       modelPath = model.replaceFirst('file://', '');
     } else {
       if (!await ResumableDownloadService.modelExists(getModelName())) {
-        throw CactusException('Model not downloaded. Call download() first.');
+        throw ModelNotDownloadedException();
       }
       modelPath = await _resolveModelPath();
     }
@@ -160,7 +161,7 @@ class CactusAudio {
     }
 
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return _handleLock.synchronized(() async {
       return CactusContext.vadAt(
@@ -193,7 +194,7 @@ class CactusAudio {
     }
 
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return _handleLock.synchronized(() async {
       return CactusContext.diarizeAt(
@@ -226,7 +227,7 @@ class CactusAudio {
     }
 
     await init();
-    if (_context == null) throw CactusException('Model not initialized');
+    if (_context == null) throw ModelNotInitializedException();
 
     return _handleLock.synchronized(() async {
       return CactusContext.embedSpeakerAt(

@@ -89,7 +89,7 @@ class _ContextTestPageState extends State<ContextTestPage> {
         model: selectedModel!.slug,
         options: CactusModelOptions(quantization: selectedQuantization, pro: usePro),
       );
-      await lm.initializeModel(model: selectedModel!.slug);
+      await lm.init();
       setState(() {
         isModelLoaded = true;
         outputText = 'Model initialized successfully! Ready to run 4K context test.';

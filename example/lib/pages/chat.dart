@@ -120,7 +120,7 @@ class _ChatPageState extends State<ChatPage> {
     );
     try {
       await _cactusLM!.download(model: selectedModel!.slug);
-      await _cactusLM!.initializeModel();
+      await _cactusLM!.init();
     } catch (e) {
       debugPrint('Failed to setup CactusLM: $e');
       setState(() {

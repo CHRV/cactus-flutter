@@ -61,23 +61,24 @@ class CactusSTT {
   /// Returns a [DownloadHandle] for pause / resume / cancel control.
   /// [model]: Override model name. Defaults to the instance model.
   /// [onProgress]: Callback for download progress.
-  Future<DownloadHandle> download({
+  Future<DownloadHandle?> download({
     String? model,
     CactusProgressCallback? onProgress,
   }) async {
-    if (_isDownloading) throw CactusException('Already downloading');
+    if (_isDownloading) throw AlreadyDownloadingException();
     _isDownloading = true;
     try {
       final effectiveModel = model ?? this.model;
       final modelName =
           '$effectiveModel-${options.quantization}${options.pro ? '-pro' : ''}';
       if (await ResumableDownloadService.modelExists(modelName)) {
-        throw CactusException('Model already downloaded');
+        _isDownloading = false;
+        return null;
       }
 
       final currentModel = await HuggingFace.getModel(effectiveModel);
       if (currentModel == null) {
-        throw CactusException('Failed to get model $effectiveModel');
+        throw ModelNotFoundException('Failed to get model $effectiveModel');
       }
 
       final quantInfo = currentModel.quantization[options.quantization];
@@ -146,33 +147,11 @@ class CactusSTT {
     }
 
     if (_context == null) {
-      throw CactusException('Failed to initialize model at $modelPath');
+      throw ModelInitFailedException('Failed to initialize model at $modelPath');
     }
 
     _isInitialized = true;
   }
-
-  /// Initializes the model with optional custom parameters. Delegates to
-  /// [init].
-  ///
-  /// [model]: Override model name.
-  /// [params]: Optional initialization parameters.
-  Future<void> initializeModel({String? model, CactusInitParams? params}) =>
-      init();
-
-  /// Downloads a specific model. Delegates to [download].
-  ///
-  /// [model]: Model identifier (required).
-  /// [quantization]: Quantization override.
-  /// [pro]: Whether to use the pro variant.
-  /// [onProgress]: Callback for download progress.
-  Future<void> downloadModel({
-    required String model,
-    String? quantization,
-    bool pro = false,
-    CactusProgressCallback? onProgress,
-  }) =>
-      download(onProgress: onProgress);
 
   /// Unloads the model and releases the context.
   void unload() {
@@ -206,7 +185,7 @@ class CactusSTT {
 
     return _handleLock.synchronized(() async {
       if (_context == null) {
-        throw CactusException('Model not initialized');
+        throw ModelNotInitializedException();
       }
 
       final effectivePrompt = prompt ?? defaultPrompt;
@@ -266,7 +245,7 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw CactusException('Model not initialized');
+      throw ModelNotInitializedException();
     }
 
     _streamHandle = _context!.streamTranscribeStart(options: options);
@@ -281,8 +260,7 @@ class CactusSTT {
     required List<int> audio,
   }) async {
     if (!_isStreamTranscribing || _streamHandle == null) {
-      throw CactusException(
-          'Stream transcription not started. Call streamTranscribeStart() first.');
+      throw StreamNotStartedException();
     }
 
     return compute(_streamTranscribeProcessInIsolate, {
@@ -296,8 +274,7 @@ class CactusSTT {
   /// Returns: Final transcription result.
   Future<CactusSTTStreamTranscribeStopResult> streamTranscribeStop() async {
     if (!_isStreamTranscribing || _streamHandle == null) {
-      throw CactusException(
-          'Stream transcription not started. Call streamTranscribeStart() first.');
+      throw StreamNotStartedException();
     }
 
     try {
@@ -322,7 +299,7 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw CactusException('Model not initialized');
+      throw ModelNotInitializedException();
     }
 
     String? audioFilePath;
@@ -354,7 +331,7 @@ class CactusSTT {
     await init();
 
     if (_context == null) {
-      throw CactusException('Model not initialized');
+      throw ModelNotInitializedException();
     }
 
     return compute(_audioEmbedInIsolate, {

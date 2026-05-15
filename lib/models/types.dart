@@ -1211,6 +1211,79 @@ class CactusException implements Exception {
   }
 }
 
+/// Thrown when a download is already in progress.
+class AlreadyDownloadingException extends CactusException {
+  AlreadyDownloadingException() : super('Already downloading');
+
+  @override
+  String toString() => 'AlreadyDownloadingException: $message';
+}
+
+/// Thrown when attempting to download a model that is already cached locally.
+class ModelAlreadyDownloadedException extends CactusException {
+  ModelAlreadyDownloadedException() : super('Model already downloaded');
+
+  @override
+  String toString() => 'ModelAlreadyDownloadedException: $message';
+}
+
+/// Thrown when an operation requires a model that hasn't been downloaded yet.
+class ModelNotDownloadedException extends CactusException {
+  ModelNotDownloadedException() : super('Model not downloaded. Call download() first.');
+
+  @override
+  String toString() => 'ModelNotDownloadedException: $message';
+}
+
+/// Thrown when an operation requires the model context but it is not loaded.
+class ModelNotInitializedException extends CactusException {
+  ModelNotInitializedException() : super('Model not initialized');
+
+  @override
+  String toString() => 'ModelNotInitializedException: $message';
+}
+
+/// Thrown when an generation request arrives while one is already in flight.
+class AlreadyGeneratingException extends CactusException {
+  AlreadyGeneratingException() : super('Already generating');
+
+  @override
+  String toString() => 'AlreadyGeneratingException: $message';
+}
+
+/// Thrown when the requested model is not found in the Hugging Face registry.
+class ModelNotFoundException extends CactusException {
+  ModelNotFoundException(super.message);
+
+  @override
+  String toString() => 'ModelNotFoundException: $message';
+}
+
+/// Thrown when the native Cactus context fails to initialize.
+class ModelInitFailedException extends CactusException {
+  ModelInitFailedException(super.message);
+
+  @override
+  String toString() => 'ModelInitFailedException: $message';
+}
+
+/// Thrown when a file:// path is used for download instead of a model name.
+class InvalidModelPathException extends CactusException {
+  InvalidModelPathException() : super('Cannot download file:// paths');
+
+  @override
+  String toString() => 'InvalidModelPathException: $message';
+}
+
+/// Thrown when a streaming operation is attempted without starting the stream.
+class StreamNotStartedException extends CactusException {
+  StreamNotStartedException()
+      : super('Stream transcription not started. Call streamTranscribeStart() first.');
+
+  @override
+  String toString() => 'StreamNotStartedException: $message';
+}
+
 /// Information required for Cactus Pro (cloud) access.
 class CactusProInfo {
   /// The Apple App Store receipt data for Pro authentication.
