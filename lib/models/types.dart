@@ -767,6 +767,31 @@ class CactusSTTStreamTranscribeProcessResult {
   final double? ramUsageMb;
 
   /// Creates a [CactusSTTStreamTranscribeProcessResult].
+  ///
+  /// [success]: Whether the processing call succeeded.
+  /// [confirmed]: Fully confirmed transcription text so far.
+  /// [pending]: Uncommitted (in-progress) transcription text.
+  /// [bufferDurationMs]: Duration of audio processed in this chunk.
+  /// [error]: Error message if the call failed.
+  /// [cloudHandoff]: Whether cloud handoff was triggered.
+  /// [cloudJobId]: Cloud job identifier.
+  /// [cloudResultJobId]: Cloud result job identifier.
+  /// [cloudResult]: Cloud transcription result text.
+  /// [cloudResultUsedCloud]: Whether the cloud result was used.
+  /// [cloudResultError]: Cloud result error message.
+  /// [cloudResultSource]: Source identifier for the cloud result.
+  /// [confirmedLocal]: Locally confirmed text (before cloud handoff).
+  /// [segments]: Timestamped transcription segments.
+  /// [functionCalls]: Function calls detected in the transcription.
+  /// [confidence]: Confidence score for this chunk.
+  /// [timeToFirstTokenMs]: Milliseconds until the first token.
+  /// [totalTimeMs]: Total processing time for this chunk.
+  /// [prefillTokens]: Prefill token count.
+  /// [prefillTps]: Prefill throughput.
+  /// [decodeTokens]: Decode token count.
+  /// [decodeTps]: Decode throughput.
+  /// [totalTokens]: Total tokens processed.
+  /// [ramUsageMb]: Peak RAM usage in MB.
   CactusSTTStreamTranscribeProcessResult({
     required this.success,
     required this.confirmed,
@@ -808,6 +833,10 @@ class CactusSTTStreamSegment {
   final String text;
 
   /// Creates a [CactusSTTStreamSegment].
+  ///
+  /// [start]: Start time in seconds.
+  /// [end]: End time in seconds.
+  /// [text]: The transcribed text for this segment.
   const CactusSTTStreamSegment({
     required this.start,
     required this.end,

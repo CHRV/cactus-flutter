@@ -270,6 +270,14 @@ class CactusContext {
   }
 
   /// Runs prefill in an isolate via [compute].
+  ///
+  /// [handleAddress]: Raw memory address of the native model handle.
+  /// [messagesJson]: JSON-encoded conversation messages.
+  /// [optionsJson]: JSON-encoded generation options.
+  /// [toolsJson]: JSON-encoded tool definitions.
+  /// [pcmData]: Optional PCM audio data for multimodal models.
+  ///
+  /// Returns a [CactusLMPrefillResult] with timing and token metrics.
   static Future<CactusLMPrefillResult> prefillAt({
     required int handleAddress,
     required String messagesJson,
@@ -307,7 +315,10 @@ class CactusContext {
   // Score window
   // -------------------------------------------------------------------------
 
-  /// Scores a sliding window of [tokens] between [start] and [end].
+  /// Scores a sliding window of [tokens] between [start] and [end] using
+  /// [contextSize] context tokens.
+  ///
+  /// Returns a [CactusLMScoreWindowResult] with per-token log-probabilities.
 Future<CactusLMScoreWindowResult> scoreWindow({
      required List<int> tokens,
      required int start,
@@ -537,6 +548,13 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   // -------------------------------------------------------------------------
 
   /// Detects the spoken language in an audio recording.
+  ///
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples as an alternative to [audioPath].
+  /// [options]: Language detection options (e.g. VAD preprocessing).
+  ///
+  /// Returns a [CactusSTTDetectLanguageResult] with the detected language code
+  /// and confidence score.
   Future<CactusSTTDetectLanguageResult> detectLanguage({
     String? audioPath,
     List<int>? pcmData,
@@ -557,6 +575,13 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   }
 
   /// Runs detectLanguage in an isolate via [compute].
+  ///
+  /// [handleAddress]: Raw memory address of the native model handle.
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples.
+  /// [options]: Language detection options.
+  ///
+  /// Returns a [CactusSTTDetectLanguageResult] with language and confidence.
   static Future<CactusSTTDetectLanguageResult> detectLanguageAt({
     required int handleAddress,
     String? audioPath,
@@ -577,6 +602,12 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   // -------------------------------------------------------------------------
 
   /// Runs voice activity detection on an audio recording.
+  ///
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples as an alternative to [audioPath].
+  /// [options]: VAD parameters (threshold, window size, etc.).
+  ///
+  /// Returns a [CactusAudioVADResult] with detected speech segments.
   Future<CactusAudioVADResult> vad({
     String? audioPath,
     List<int>? pcmData,
@@ -605,6 +636,13 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   }
 
   /// Runs VAD in an isolate via [compute].
+  ///
+  /// [handleAddress]: Raw memory address of the native model handle.
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples.
+  /// [options]: VAD options.
+  ///
+  /// Returns a [CactusAudioVADResult] with speech segments.
   static Future<CactusAudioVADResult> vadAt({
     required int handleAddress,
     String? audioPath,
@@ -625,6 +663,12 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   // -------------------------------------------------------------------------
 
   /// Runs speaker diarization to identify who spoke when.
+  ///
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples as an alternative to [audioPath].
+  /// [options]: Diarization parameters (number of speakers, thresholds).
+  ///
+  /// Returns a [CactusAudioDiarizeResult] with speaker segments and scores.
   Future<CactusAudioDiarizeResult> diarize({
     String? audioPath,
     List<int>? pcmData,
@@ -652,6 +696,13 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   }
 
   /// Runs diarize in an isolate via [compute].
+  ///
+  /// [handleAddress]: Raw memory address of the native model handle.
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples.
+  /// [options]: Diarization options.
+  ///
+  /// Returns a [CactusAudioDiarizeResult] with speaker assignment scores.
   static Future<CactusAudioDiarizeResult> diarizeAt({
     required int handleAddress,
     String? audioPath,
@@ -672,6 +723,12 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   // -------------------------------------------------------------------------
 
   /// Extracts a speaker embedding vector from an audio recording.
+  ///
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples as an alternative to [audioPath].
+  /// [options]: Speaker embedding options (mask weights for diarization).
+  ///
+  /// Returns a [CactusAudioEmbedSpeakerResult] with the embedding vector.
   Future<CactusAudioEmbedSpeakerResult> embedSpeaker({
     String? audioPath,
     List<int>? pcmData,
@@ -698,6 +755,13 @@ static CactusLMScoreWindowResult scoreWindowWithHandle(
   }
 
   /// Runs embedSpeaker in an isolate via [compute].
+  ///
+  /// [handleAddress]: Raw memory address of the native model handle.
+  /// [audioPath]: Path to an audio file on disk.
+  /// [pcmData]: Raw PCM audio samples.
+  /// [options]: Speaker embedding options.
+  ///
+  /// Returns a [CactusAudioEmbedSpeakerResult] with the embedding.
   static Future<CactusAudioEmbedSpeakerResult> embedSpeakerAt({
     required int handleAddress,
     String? audioPath,

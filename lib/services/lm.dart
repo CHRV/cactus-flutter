@@ -198,8 +198,16 @@ class CactusLM {
   /// Alias for [destroy]. Unloads the model from memory.
   void unload() => destroy();
 
-  /// Complete via isolated FFI call. Uses Isolate.spawn because
-  /// cactusComplete streams tokens through a Dart callback.
+  /// Runs a full completion (prefill + decode) and returns the result.
+  ///
+  /// [messages]: The conversation history to complete.
+  /// [options]: Optional generation parameters (temperature, max tokens, etc.).
+  /// [tools]: Optional tool definitions for function calling.
+  /// [onToken]: Optional callback invoked for each generated token during
+  ///   streaming.
+  /// [audio]: Optional raw 16-bit PCM audio samples for multimodal models.
+  ///
+  /// Returns the full [CactusLMCompleteResult] with the assistant response.
   Future<CactusLMCompleteResult> complete({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -295,7 +303,15 @@ class CactusLM {
     );
   }
 
-  /// Prefill via isolated FFI call.
+  /// Prefills the KV cache with [messages] without generating any output
+  /// tokens. Useful for warming the cache or measuring prefill performance.
+  ///
+  /// [messages]: The conversation messages to prefill.
+  /// [options]: Optional generation parameters.
+  /// [tools]: Optional tool definitions.
+  /// [audio]: Optional PCM audio data for audio-capable models.
+  ///
+  /// Returns a [CactusLMPrefillResult] with prefill metrics.
   Future<CactusLMPrefillResult> prefill({
     required List<CactusLMMessage> messages,
     CactusLMCompleteOptions? options,
@@ -373,7 +389,12 @@ class CactusLM {
     });
   }
 
-  /// Embed via isolated FFI call.
+  /// Generates a text embedding vector for the given [text].
+  ///
+  /// [text]: The input text to embed.
+  /// [normalize]: Whether to L2-normalize the embedding vector.
+  ///
+  /// Returns a [CactusLMEmbedResult] containing the embedding.
   Future<CactusLMEmbedResult> embed({
     required String text,
     bool normalize = false,
